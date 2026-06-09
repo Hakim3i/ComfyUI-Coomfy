@@ -1,0 +1,19 @@
+# Optional local clones of Qwen custom nodes for inspection (not tracked)
+reference_custom_nodes/
+__pycache__/
+.commitmsg.tmp
+.coomfy_cache.json
+.dropdowns_cache.json
+.dropdowns_cache_*.json
+.pytest_cache/
+*.py[cod]
+*.pyc
+
+# Legacy: the dataset + viewer used to live here. They moved to the
+# standalone Coomfy repo (../Coomfy/). If a leftover dataset/ folder
+# is still present from before the split, ignore its contents so it
+# doesn't pollute commits.
+dataset/dataset.db
+dataset/dataset.db-wal
+dataset/dataset.db-shm
+dataset/_snapshots/
