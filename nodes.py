@@ -1,4 +1,4 @@
-"""ComfyUI-Coomfy — LoRA ensure + export nodes for Photo / Video Lab workflows."""
+﻿"""ComfyUI-Coomfy — LoRA ensure + export nodes for Photo / Video Lab workflows."""
 
 from __future__ import annotations
 
@@ -198,15 +198,14 @@ class CoomfyExportVideo:
         }
 
 
-class CoomfyEnsureSDXLLoras:
-    """Download SDXL LoRAs from ``loras_json``, then pass model/clip through unchanged."""
+class CoomfyEnsureLoras:
+    """Download LoRAs from ``loras_json`` (SDXL, LTX, ZIT, etc.), passthrough model/clip."""
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "model": ("MODEL",),
-                "clip": ("CLIP",),
                 "loras_json": (
                     "STRING",
                     {
@@ -229,7 +228,15 @@ class CoomfyEnsureSDXLLoras:
                         "tooltip": "Injected by Coomfy webapp from Settings (not read from env).",
                     },
                 ),
-            }
+            },
+            "optional": {
+                "clip": (
+                    "CLIP",
+                    {
+                        "tooltip": "Optional CLIP passthrough (Photo Studio / LTX dual-CLIP).",
+                    },
+                ),
+            },
         }
 
     RETURN_TYPES = ("MODEL", "CLIP")
@@ -240,10 +247,10 @@ class CoomfyEnsureSDXLLoras:
     def ensure(
         self,
         model,
-        clip,
         loras_json: str,
         civitai_token: str,
         hf_token: str,
+        clip=None,
     ):
         applied = ensure_loras_from_json(
             loras_json,
@@ -251,76 +258,23 @@ class CoomfyEnsureSDXLLoras:
             hf_token=hf_token or "",
         )
         if applied:
-            print(f"{_LOG} SDXL LoRAs ready: {', '.join(applied)}")
+            print(f"{_LOG} LoRAs ready: {', '.join(applied)}")
         return (model, clip)
 
 
-class CoomfyEnsureLTXLoras:
-    """Download LTX LoRAs from ``loras_json``, then pass model through unchanged."""
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "model": ("MODEL",),
-                "loras_json": (
-                    "STRING",
-                    {
-                        "multiline": True,
-                        "default": "[]",
-                        "tooltip": "JSON array of LTX LoRA entries from Coomfy.",
-                    },
-                ),
-                "civitai_token": (
-                    "STRING",
-                    {
-                        "default": "",
-                        "tooltip": "Injected by Coomfy webapp from Settings.",
-                    },
-                ),
-                "hf_token": (
-                    "STRING",
-                    {
-                        "default": "",
-                        "tooltip": "Injected by Coomfy webapp from Settings.",
-                    },
-                ),
-            }
-        }
-
-    RETURN_TYPES = ("MODEL",)
-    RETURN_NAMES = ("model",)
-    FUNCTION = "ensure"
-    CATEGORY = "Coomfy"
-
-    def ensure(
-        self,
-        model,
-        loras_json: str,
-        civitai_token: str,
-        hf_token: str,
-    ):
-        applied = ensure_loras_from_json(
-            loras_json,
-            civitai_token=civitai_token or "",
-            hf_token=hf_token or "",
-        )
-        if applied:
-            print(f"{_LOG} LTX LoRAs ready: {', '.join(applied)}")
-        return (model,)
-
-
 NODE_CLASS_MAPPINGS = {
-    "CoomfyEnsureSDXLLoras": CoomfyEnsureSDXLLoras,
-    "CoomfyEnsureLTXLoras": CoomfyEnsureLTXLoras,
+    "CoomfyEnsureLoras": CoomfyEnsureLoras,
+    "CoomfyEnsureSDXLLoras": CoomfyEnsureLoras,
+    "CoomfyEnsureLTXLoras": CoomfyEnsureLoras,
     "CoomfyExportImage": CoomfyExportImage,
     "CoomfyExportAudio": CoomfyExportAudio,
     "CoomfyExportVideo": CoomfyExportVideo,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "CoomfyEnsureSDXLLoras": "Coomfy Ensure SDXL LoRAs",
-    "CoomfyEnsureLTXLoras": "Coomfy Ensure LTX LoRAs",
+    "CoomfyEnsureLoras": "Coomfy Ensure LoRAs",
+    "CoomfyEnsureSDXLLoras": "Coomfy Ensure LoRAs",
+    "CoomfyEnsureLTXLoras": "Coomfy Ensure LoRAs",
     "CoomfyExportImage": "Coomfy Export Image",
     "CoomfyExportAudio": "Coomfy Export Audio",
     "CoomfyExportVideo": "Coomfy Export Video",
