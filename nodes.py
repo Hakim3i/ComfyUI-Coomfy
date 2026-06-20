@@ -262,10 +262,59 @@ class CoomfyEnsureLoras:
         return (model, clip)
 
 
+class CoomfyPreflightLoras:
+    """Download LoRAs only — terminal output node for Coomfy preflight workflows."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "loras_json": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "[]",
+                        "tooltip": "JSON array of LoRA entries from Coomfy /api/build.",
+                    },
+                ),
+                "civitai_token": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Injected by Coomfy webapp from Settings (not read from env).",
+                    },
+                ),
+                "hf_token": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Injected by Coomfy webapp from Settings (not read from env).",
+                    },
+                ),
+            }
+        }
+
+    RETURN_TYPES = ()
+    FUNCTION = "preflight"
+    OUTPUT_NODE = True
+    CATEGORY = "Coomfy"
+
+    def preflight(self, loras_json: str, civitai_token: str, hf_token: str):
+        applied = ensure_loras_from_json(
+            loras_json,
+            civitai_token=civitai_token or "",
+            hf_token=hf_token or "",
+        )
+        if applied:
+            print(f"{_LOG} preflight LoRAs ready: {', '.join(applied)}")
+        return {"ui": {"text": [f"LoRAs ready: {', '.join(applied) or 'none'}"]}}
+
+
 NODE_CLASS_MAPPINGS = {
     "CoomfyEnsureLoras": CoomfyEnsureLoras,
     "CoomfyEnsureSDXLLoras": CoomfyEnsureLoras,
     "CoomfyEnsureLTXLoras": CoomfyEnsureLoras,
+    "CoomfyPreflightLoras": CoomfyPreflightLoras,
     "CoomfyExportImage": CoomfyExportImage,
     "CoomfyExportAudio": CoomfyExportAudio,
     "CoomfyExportVideo": CoomfyExportVideo,
@@ -275,6 +324,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CoomfyEnsureLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureSDXLLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureLTXLoras": "Coomfy Ensure LoRAs",
+    "CoomfyPreflightLoras": "Coomfy Preflight LoRAs",
     "CoomfyExportImage": "Coomfy Export Image",
     "CoomfyExportAudio": "Coomfy Export Audio",
     "CoomfyExportVideo": "Coomfy Export Video",
