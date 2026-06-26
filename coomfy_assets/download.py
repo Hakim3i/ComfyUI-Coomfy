@@ -29,6 +29,7 @@ def _download_file(
     civitai_token: str,
     hf_token: str,
     label: str,
+    progress_bar: Any | None = None,
 ) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(target.suffix + ".part")
@@ -56,7 +57,9 @@ def _download_file(
                     break
                 handle.write(chunk)
                 downloaded += len(chunk)
-                if total > 0:
+                if progress_bar is not None and total > 0:
+                    progress_bar.update_absolute(downloaded, total)
+                elif total > 0:
                     pct = min(100, downloaded * 100 // total)
                     print(
                         f"{_LOG}   Progress: {_format_mb(downloaded)} / "
@@ -74,6 +77,7 @@ def ensure_lora_file(
     *,
     civitai_token: str = "",
     hf_token: str = "",
+    progress_bar: Any | None = None,
 ) -> Path:
     """Ensure ``info['filename']`` exists under ``models/loras/``; download if missing.
 
@@ -115,6 +119,7 @@ def ensure_lora_file(
                 civitai_token=civitai_token,
                 hf_token=hf_token,
                 label=str(name),
+                progress_bar=progress_bar,
             )
             last_error = None
             break
@@ -150,6 +155,13 @@ def ensure_loras_from_json(
     if not isinstance(entries, list):
         raise RuntimeError(f"{_LOG} loras_json must be a JSON array")
     applied: list[str] = []
+    progress_bar = None
+    try:
+        from comfy.utils import ProgressBar
+    except ImportError:
+        ProgressBar = None
+    if ProgressBar is not None:
+        progress_bar = ProgressBar(100)
     for entry in entries:
         if not isinstance(entry, dict):
             continue
@@ -157,6 +169,7 @@ def ensure_loras_from_json(
             entry,
             civitai_token=civitai_token,
             hf_token=hf_token,
+            progress_bar=progress_bar,
         )
         applied.append(path.name)
     return applied

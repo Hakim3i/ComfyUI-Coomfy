@@ -199,7 +199,7 @@ class CoomfyExportVideo:
 
 
 class CoomfyEnsureLoras:
-    """Download LoRAs from ``loras_json`` (SDXL, LTX, ZIT, etc.), passthrough model/clip."""
+    """Download LoRAs from ``loras_json`` (SDXL, LTX, etc.), passthrough model/clip."""
 
     @classmethod
     def INPUT_TYPES(cls):
