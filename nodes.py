@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .coomfy_assets.download import ensure_loras_from_json
+from .coomfy_assets.download import ensure_all_assets, ensure_loras_from_json
 from .coomfy_export import export_audio, export_images, mux_video
 
 _LOG = "[Coomfy ensure]"
@@ -310,7 +310,164 @@ class CoomfyPreflightLoras:
         return {"ui": {"text": [f"LoRAs ready: {', '.join(applied) or 'none'}"]}}
 
 
+class ComfySpritesDownloader:
+    """Download every missing asset (checkpoints, LoRAs, ControlNets, upscalers,
+    detailers, diffusion models, text encoders, VAE); output inference ``ckpt_name``.
+
+    Class name kept as ``ComfySpritesDownloader`` because the Coomfy webapp targets
+    it directly in ``webapp/comfyui/download_workflow.py``.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "ckpt_name": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Inference checkpoint filename for the SDXL Loader.",
+                    },
+                ),
+                "checkpoints_json": ("STRING", {"multiline": True, "default": "[]"}),
+                "loras_json": ("STRING", {"multiline": True, "default": "[]"}),
+                "controlnets_json": ("STRING", {"multiline": True, "default": "[]"}),
+                "upscalers_json": ("STRING", {"multiline": True, "default": "[]"}),
+                "detailers_json": ("STRING", {"multiline": True, "default": "[]"}),
+                "diffusion_models_json": ("STRING", {"multiline": True, "default": "[]"}),
+                "text_encoders_json": ("STRING", {"multiline": True, "default": "[]"}),
+                "vae_json": ("STRING", {"multiline": True, "default": "[]"}),
+                "civitai_token": ("STRING", {"default": ""}),
+                "hf_token": ("STRING", {"default": ""}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("ckpt_name",)
+    FUNCTION = "download"
+    CATEGORY = "Coomfy"
+
+    def download(
+        self,
+        ckpt_name: str,
+        checkpoints_json: str,
+        loras_json: str,
+        controlnets_json: str,
+        upscalers_json: str,
+        detailers_json: str,
+        diffusion_models_json: str,
+        text_encoders_json: str,
+        vae_json: str,
+        civitai_token: str,
+        hf_token: str,
+    ):
+        try:
+            from comfy.utils import ProgressBar
+        except ImportError:
+            ProgressBar = None  # type: ignore[misc, assignment]
+
+        from .coomfy_assets.download import count_pending_assets
+
+        pending = count_pending_assets(
+            checkpoints_json=checkpoints_json,
+            loras_json=loras_json,
+            controlnets_json=controlnets_json,
+            upscalers_json=upscalers_json,
+            detailers_json=detailers_json,
+            diffusion_models_json=diffusion_models_json,
+            text_encoders_json=text_encoders_json,
+            vae_json=vae_json,
+        )
+        pbar = ProgressBar(pending) if ProgressBar is not None and pending > 0 else None
+
+        def _on_asset_progress(frac: float) -> None:
+            if pbar is not None:
+                pbar.update_absolute(int(round(frac * pending)), pending)
+
+        applied = ensure_all_assets(
+            checkpoints_json=checkpoints_json,
+            loras_json=loras_json,
+            controlnets_json=controlnets_json,
+            upscalers_json=upscalers_json,
+            detailers_json=detailers_json,
+            diffusion_models_json=diffusion_models_json,
+            text_encoders_json=text_encoders_json,
+            vae_json=vae_json,
+            civitai_token=civitai_token or "",
+            hf_token=hf_token or "",
+            on_progress=_on_asset_progress if pbar is not None else None,
+        )
+        if pbar is not None:
+            pbar.update_absolute(pending, pending)
+        name = (ckpt_name or "").strip()
+        if not name:
+            for key in (
+                "diffusion_models",
+                "text_encoders",
+                "vae",
+                "loras",
+                "checkpoints",
+            ):
+                rows = applied.get(key) or []
+                if rows:
+                    name = str(rows[0]).strip()
+                    break
+            if not name:
+                name = "assets-ready"
+        parts: list[str] = []
+        for key in (
+            "checkpoints",
+            "loras",
+            "controlnets",
+            "upscalers",
+            "detailers",
+            "diffusion_models",
+            "text_encoders",
+            "vae",
+        ):
+            rows = applied.get(key) or []
+            if rows:
+                parts.append(f"{key}={', '.join(rows)}")
+        if parts:
+            print(f"{_LOG} downloaded: {'; '.join(parts)}")
+        print(f"{_LOG} assets ready; inference checkpoint: {name}")
+        return (name,)
+
+
+class ComfySpritesDownloadOutput:
+    """Terminal output node for the asset-download workflow (satisfies ``OUTPUT_NODE``).
+
+    Class name kept as ``ComfySpritesDownloadOutput`` because the Coomfy webapp
+    targets it directly in ``webapp/comfyui/download_workflow.py``.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "message": (
+                    "STRING",
+                    {"default": "", "tooltip": "Wire from Coomfy Asset Downloader output."},
+                ),
+            }
+        }
+
+    RETURN_TYPES = ()
+    FUNCTION = "output"
+    OUTPUT_NODE = True
+    CATEGORY = "Coomfy"
+
+    def output(self, message: str):
+        text = (message or "").strip() or "ok"
+        print(f"{_LOG} download workflow complete: {text}")
+        return {"ui": {"text": [text]}}
+
+
 NODE_CLASS_MAPPINGS = {
+    "ComfySpritesDownloader": ComfySpritesDownloader,
+    "ComfySpritesDownloadOutput": ComfySpritesDownloadOutput,
+    "CoomfyAssetDownloader": ComfySpritesDownloader,
+    "CoomfyAssetDownloadOutput": ComfySpritesDownloadOutput,
     "CoomfyEnsureLoras": CoomfyEnsureLoras,
     "CoomfyEnsureSDXLLoras": CoomfyEnsureLoras,
     "CoomfyEnsureLTXLoras": CoomfyEnsureLoras,
@@ -321,6 +478,10 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "ComfySpritesDownloader": "Coomfy Asset Downloader",
+    "ComfySpritesDownloadOutput": "Coomfy Asset Download Output",
+    "CoomfyAssetDownloader": "Coomfy Asset Downloader",
+    "CoomfyAssetDownloadOutput": "Coomfy Asset Download Output",
     "CoomfyEnsureLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureSDXLLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureLTXLoras": "Coomfy Ensure LoRAs",

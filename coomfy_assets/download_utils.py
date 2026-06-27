@@ -3,6 +3,31 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+
+def is_civitai_url(url: str) -> bool:
+    low = (url or "").lower()
+    return "civitai.com" in low or "civitai.red" in low
+
+
+def is_huggingface_url(url: str) -> bool:
+    low = (url or "").lower()
+    return "huggingface.co" in low or "hf.co" in low
+
+
+def civitai_authenticated_url(url: str, token: str) -> str:
+    """Append Civitai API token as ``?token=`` / ``&token=`` (required for downloads)."""
+    raw_url = (url or "").strip()
+    token = (token or "").strip()
+    if not raw_url or not token or not is_civitai_url(raw_url):
+        return raw_url
+    parsed = urlparse(raw_url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    if query.get("token"):
+        return raw_url
+    query["token"] = token
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
 def download_candidates(info: dict[str, Any]) -> list[str]:

@@ -10,7 +10,7 @@ How the **Coomfy** webapp relates to a **local ComfyUI** instance and this **Com
 |-----------|-------------|------|
 | **Coomfy** (parent repo) | `http://127.0.0.1:8765` | Dataset editor, `POST /api/build`, `GET /api/dropdowns`, Photo / Video Lab UI |
 | **ComfyUI** | configurable (`COMFYUI_BASE_URL`) | Executes node graphs; `/prompt`, `/history`, `/view`, `/ws` |
-| **ComfyUI-Coomfy** (this pack) | `ComfyUI/custom_nodes/` | LoRA ensure nodes; downloads on GPU host; tokens injected by Coomfy webapp |
+| **ComfyUI-Coomfy** (this pack) | `ComfyUI/custom_nodes/` | Asset download + LoRA ensure + export nodes; downloads on GPU host; tokens injected by Coomfy webapp |
 
 They are **separate processes**. Coomfy does not need to live inside `custom_nodes/`.
 
@@ -54,6 +54,7 @@ Coomfy is the **prompt and metadata authority**; ComfyUI is the **compute engine
 | **Coomfy Export Image** | Photo Studio node **`132`** — strip metadata + compress before PreviewImage `131` |
 | **Coomfy Export Audio** | Video Studio node **`319`** — audio prep before mux |
 | **Coomfy Export Video** | Video Studio node **`59`** — metadata-free H.264 mux (Coomfy download target) |
+| **ComfySpritesDownloader** / **ComfySpritesDownloadOutput** | Photo Lab asset preflight via [`download_workflow.py`](../webapp/comfyui/download_workflow.py) |
 
 Before `POST /prompt`, Coomfy ([`../webapp/comfyui/inject_assets.py`](../webapp/comfyui/inject_assets.py)) patches:
 
@@ -61,7 +62,7 @@ Before `POST /prompt`, Coomfy ([`../webapp/comfyui/inject_assets.py`](../webapp/
 - `civitai_token` / `hf_token` — from [`load_api_keys()`](../webapp/env_settings.py)
 - `enabled` on export nodes — from `request.export_compress` (defaults **on**; UI toggle planned)
 
-**v1:** LoRAs only (checkpoints must already be on the ComfyUI host).
+**Multi-asset preflight:** `ComfySpritesDownloader` downloads missing checkpoints, LoRAs, ControlNets, upscalers, detailer detectors + SAM, diffusion models, text encoders, and VAE before generation. Legacy ensure-LoRA nodes remain for in-workflow LoRA loading.
 
 ### Install
 
@@ -76,7 +77,7 @@ Before `POST /prompt`, Coomfy ([`../webapp/comfyui/inject_assets.py`](../webapp/
 | Module | Role |
 |--------|------|
 | [`../webapp/comfyui/workflow.py`](../webapp/comfyui/workflow.py) | Photo Studio load / patch / node id map |
-| [`../webapp/comfyui/asset_manifest.py`](../webapp/comfyui/asset_manifest.py) | LoRA lists for ensure nodes |
+| [`../webapp/comfyui/asset_manifest.py`](../webapp/comfyui/asset_manifest.py) | Asset manifest rows for ensure/download nodes |
 | [`../webapp/comfyui/inject_assets.py`](../webapp/comfyui/inject_assets.py) | Patch ensure node inputs + tokens |
 | [`../webapp/comfyui/generate.py`](../webapp/comfyui/generate.py) | Queue Photo / Video Lab jobs |
 | [`../webapp/comfyui/workflows/`](../webapp/comfyui/workflows/) | API-format JSON templates + patch docs |
