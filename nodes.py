@@ -310,12 +310,9 @@ class CoomfyPreflightLoras:
         return {"ui": {"text": [f"LoRAs ready: {', '.join(applied) or 'none'}"]}}
 
 
-class ComfySpritesDownloader:
+class CoomfyAssetDownloader:
     """Download every missing asset (checkpoints, LoRAs, ControlNets, upscalers,
     detailers, diffusion models, text encoders, VAE); output inference ``ckpt_name``.
-
-    Class name kept as ``ComfySpritesDownloader`` because the Coomfy webapp targets
-    it directly in ``webapp/comfyui/download_workflow.py``.
     """
 
     @classmethod
@@ -434,12 +431,8 @@ class ComfySpritesDownloader:
         return (name,)
 
 
-class ComfySpritesDownloadOutput:
-    """Terminal output node for the asset-download workflow (satisfies ``OUTPUT_NODE``).
-
-    Class name kept as ``ComfySpritesDownloadOutput`` because the Coomfy webapp
-    targets it directly in ``webapp/comfyui/download_workflow.py``.
-    """
+class CoomfyAssetDownloadOutput:
+    """Terminal output node for the asset-download workflow (satisfies ``OUTPUT_NODE``)."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -464,10 +457,12 @@ class ComfySpritesDownloadOutput:
 
 
 NODE_CLASS_MAPPINGS = {
-    "ComfySpritesDownloader": ComfySpritesDownloader,
-    "ComfySpritesDownloadOutput": ComfySpritesDownloadOutput,
-    "CoomfyAssetDownloader": ComfySpritesDownloader,
-    "CoomfyAssetDownloadOutput": ComfySpritesDownloadOutput,
+    # Canonical names (new)
+    "CoomfyAssetDownloader": CoomfyAssetDownloader,
+    "CoomfyAssetDownloadOutput": CoomfyAssetDownloadOutput,
+    # Back-compat aliases for older saved workflows
+    "ComfySpritesDownloader": CoomfyAssetDownloader,
+    "ComfySpritesDownloadOutput": CoomfyAssetDownloadOutput,
     "CoomfyEnsureLoras": CoomfyEnsureLoras,
     "CoomfyEnsureSDXLLoras": CoomfyEnsureLoras,
     "CoomfyEnsureLTXLoras": CoomfyEnsureLoras,
@@ -478,10 +473,10 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ComfySpritesDownloader": "Coomfy Asset Downloader",
-    "ComfySpritesDownloadOutput": "Coomfy Asset Download Output",
     "CoomfyAssetDownloader": "Coomfy Asset Downloader",
     "CoomfyAssetDownloadOutput": "Coomfy Asset Download Output",
+    "ComfySpritesDownloader": "Coomfy Asset Downloader",
+    "ComfySpritesDownloadOutput": "Coomfy Asset Download Output",
     "CoomfyEnsureLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureSDXLLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureLTXLoras": "Coomfy Ensure LoRAs",
