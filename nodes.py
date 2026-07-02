@@ -457,12 +457,8 @@ class CoomfyAssetDownloadOutput:
 
 
 NODE_CLASS_MAPPINGS = {
-    # Canonical names (new)
     "CoomfyAssetDownloader": CoomfyAssetDownloader,
     "CoomfyAssetDownloadOutput": CoomfyAssetDownloadOutput,
-    # Back-compat aliases for older saved workflows
-    "ComfySpritesDownloader": CoomfyAssetDownloader,
-    "ComfySpritesDownloadOutput": CoomfyAssetDownloadOutput,
     "CoomfyEnsureLoras": CoomfyEnsureLoras,
     "CoomfyEnsureSDXLLoras": CoomfyEnsureLoras,
     "CoomfyEnsureLTXLoras": CoomfyEnsureLoras,
@@ -475,8 +471,6 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CoomfyAssetDownloader": "Coomfy Asset Downloader",
     "CoomfyAssetDownloadOutput": "Coomfy Asset Download Output",
-    "ComfySpritesDownloader": "Coomfy Asset Downloader",
-    "ComfySpritesDownloadOutput": "Coomfy Asset Download Output",
     "CoomfyEnsureLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureSDXLLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureLTXLoras": "Coomfy Ensure LoRAs",

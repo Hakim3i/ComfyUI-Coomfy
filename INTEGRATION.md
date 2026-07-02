@@ -54,7 +54,7 @@ Coomfy is the **prompt and metadata authority**; ComfyUI is the **compute engine
 | **Coomfy Export Image** | Photo Studio node **`132`** — strip metadata + compress before PreviewImage `131` |
 | **Coomfy Export Audio** | Video Studio node **`319`** — audio prep before mux |
 | **Coomfy Export Video** | Video Studio node **`59`** — metadata-free H.264 mux (Coomfy download target) |
-| **ComfySpritesDownloader** / **ComfySpritesDownloadOutput** | Photo Lab asset preflight via [`download_workflow.py`](../webapp/comfyui/download_workflow.py) |
+| **CoomfyAssetDownloader** / **CoomfyAssetDownloadOutput** | Photo Lab asset preflight via [`download_workflow.py`](../webapp/comfyui/download_workflow.py) |
 
 Before `POST /prompt`, Coomfy ([`../webapp/comfyui/inject_assets.py`](../webapp/comfyui/inject_assets.py)) patches:
 
@@ -62,13 +62,45 @@ Before `POST /prompt`, Coomfy ([`../webapp/comfyui/inject_assets.py`](../webapp/
 - `civitai_token` / `hf_token` — from [`load_api_keys()`](../webapp/env_settings.py)
 - `enabled` on export nodes — from `request.export_compress` (defaults **on**; UI toggle planned)
 
-**Multi-asset preflight:** `ComfySpritesDownloader` downloads missing checkpoints, LoRAs, ControlNets, upscalers, detailer detectors + SAM, diffusion models, text encoders, and VAE before generation. Legacy ensure-LoRA nodes remain for in-workflow LoRA loading.
+**Multi-asset preflight:** `CoomfyAssetDownloader` downloads missing checkpoints, LoRAs, ControlNets, upscalers, detailer detectors + SAM, diffusion models, text encoders, and VAE before generation. Ensure-LoRA nodes remain for in-workflow LoRA loading.
 
 ### Install
 
 1. Copy or symlink this folder to `ComfyUI/custom_nodes/ComfyUI-Coomfy`.
 2. Restart ComfyUI.
 3. Set Civitai / HF tokens in Coomfy **Settings**.
+
+### Prompt Relay (Video Lab timed phases)
+
+Video Lab toggle **Prompt Relay (timed phases)** (`ltx_include_time_brackets`) switches temporal prompting:
+
+| Toggle | Behavior |
+|--------|----------|
+| **ON** | Kijai **`PromptRelayEncode`** — `global_prompt` + `local_prompts` (`beat1 \| beat2 \| …`) + `segment_lengths` (pixel frames per phase). Positive conditioning bypasses the single `CLIPTextEncode` caption. |
+| **OFF** | Legacy path — one `CLIPTextEncode` caption; optional `[0-5 sec]` text brackets in the caption string. |
+
+**Install on the ComfyUI host** (not bundled with Coomfy):
+
+```bash
+cd ComfyUI/custom_nodes/ComfyUI-Coomfy
+bash install_comfyui_custom_nodes.sh              # full stack (Vast.ai / RunPod)
+INSTALL_OPTIONAL=1 bash install_comfyui_custom_nodes.sh   # + Prompt Relay, RIFE, RTX VSR
+
+# Prompt Relay only:
+cd .. && git clone https://github.com/kijai/ComfyUI-PromptRelay.git
+```
+
+Restart ComfyUI after install. Requires an up-to-date **ComfyUI-LTXVideo** stack. If a node is missing, queued jobs fail at execution time with an unknown node type error. For the full node list on Vast.ai / RunPod, run `install_comfyui_custom_nodes.sh` in this folder (see parent [README.md](../README.md#remote-comfyui-vastai--runpod)).
+
+Syntax matches the [PromptRelay README](https://github.com/kijai/ComfyUI-PromptRelay): persistent `global_prompt`, pipe-separated local beats, comma-separated frame counts aligned with Coomfy phase timing (`phase_frame_ranges` / timed LoRA schedules).
+
+### Arc toggles (Video Lab)
+
+- **Framing** uses the act view's **natural language** once in the opener (`framing` segment). No per-phase camera cues.
+- Video Lab checkboxes omit parts of the arc at preview/generate time without changing stored act data:
+  - `ltx_include_audio_tiers` — `Audio:` tier hints
+  - `ltx_include_voice_lines` — dialogue beats
+- **Personality** dropdown (`personality`, default `character`) overrides which voice-line pool is resolved; otherwise the rolled character's personality is used.
 
 ---
 

@@ -9,8 +9,8 @@ Asset download support for **Coomfy** Photo Lab and Video Lab. The Coomfy webapp
 
 | Node | Role |
 |------|------|
-| **Coomfy Asset Downloader** (`ComfySpritesDownloader`) | Download every missing asset (checkpoints, LoRAs, ControlNets, upscalers, detailers, diffusion models, text encoders, VAE); output inference `ckpt_name` |
-| **Coomfy Asset Download Output** (`ComfySpritesDownloadOutput`) | Terminal `OUTPUT_NODE` for the preflight download workflow |
+| **Coomfy Asset Downloader** (`CoomfyAssetDownloader`) | Download every missing asset (checkpoints, LoRAs, ControlNets, upscalers, detailers, diffusion models, text encoders, VAE); output inference `ckpt_name` |
+| **Coomfy Asset Download Output** (`CoomfyAssetDownloadOutput`) | Terminal `OUTPUT_NODE` for the preflight download workflow |
 | **Coomfy Ensure SDXL LoRAs** | Download SDXL LoRAs from `loras_json`, pass `MODEL` + `CLIP` through |
 | **Coomfy Ensure LTX LoRAs** | Download LTX LoRAs from `loras_json`, pass `MODEL` through |
 | **Coomfy Export Image** | Strip metadata and compress stills (WebP/JPEG/PNG) before Coomfy download |
@@ -29,11 +29,20 @@ Ensure nodes **do not** read `CIVITAI_TOKEN` / `HF_TOKEN` from the ComfyUI proce
 
 ## Install
 
-Copy or symlink this folder into ComfyUI:
+Copy or clone this folder into ComfyUI:
 
 ```
 ComfyUI/custom_nodes/ComfyUI-Coomfy
 ```
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/Hakim3i/ComfyUI-Coomfy.git
+cd ComfyUI-Coomfy
+bash install_comfyui_custom_nodes.sh   # clones/updates all other required custom nodes
+```
+
+ComfyUI root is inferred as `../..`. Override with an argument or `COMFYUI_PATH` if needed. Re-run the script to update packs.
 
 Restart ComfyUI. Photo / Video Lab queueing requires these node types on the ComfyUI host.
 
@@ -41,7 +50,7 @@ Restart ComfyUI. Photo / Video Lab queueing requires these node types on the Com
 
 ## Scope
 
-- **Multi-asset preflight** — `ComfySpritesDownloader` fetches checkpoints, LoRAs, ControlNets, upscalers, detailer detectors + SAM, diffusion models, text encoders, and VAE before generation.
+- **Multi-asset preflight** — `CoomfyAssetDownloader` fetches checkpoints, LoRAs, ControlNets, upscalers, detailer detectors + SAM, diffusion models, text encoders, and VAE before generation.
 - The legacy ensure-LoRA nodes remain for in-workflow LoRA loading.
 
 ## Docs
@@ -58,5 +67,6 @@ Restart ComfyUI. Photo / Video Lab queueing requires these node types on the Com
 | `nodes.py` | ComfyUI node registrations |
 | `coomfy_memory.py` | `CoomfyFreeVram` node |
 | `coomfy_export/` | Strip metadata + compress image/audio/video helpers |
+| `install_comfyui_custom_nodes.sh` | Clone/update all ComfyUI packs Photo + Video Lab need |
 | `__init__.py` | Pack entry (merges node registries) |
 | `tests/` | Pytest for download URL + export helpers |
