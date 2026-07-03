@@ -647,6 +647,9 @@ def ensure_all_assets(
             progress=progress,
         ),
     }
+    from .ltx_lora_inspect import inspect_ltx_lora_filenames
+
+    result["lora_inspect"] = inspect_ltx_lora_filenames(result.get("loras") or [])
     if on_progress is not None and pending > 0:
         on_progress(1.0)
     return result

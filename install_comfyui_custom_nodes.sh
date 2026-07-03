@@ -78,6 +78,7 @@ clone_or_update "ComfyUI-Custom-Scripts" "https://github.com/pythongosssss/Comfy
 clone_or_update "ComfyUI-Easy-Use" "https://github.com/yolain/ComfyUI-Easy-Use.git"
 clone_or_update "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
 clone_or_update "ComfyUI-Anima-LLLite" "https://github.com/kohya-ss/ComfyUI-Anima-LLLite.git"
+clone_or_update "ComfyUI-MultiLoRALoader" "https://github.com/phazei/ComfyUI-MultiLoRALoader.git"
 
 if [[ "${INSTALL_OPTIONAL}" == "1" ]]; then
   echo "--- optional nodes (timed phases, RIFE, RTX VSR) ---"

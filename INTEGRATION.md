@@ -50,7 +50,7 @@ Coomfy is the **prompt and metadata authority**; ComfyUI is the **compute engine
 | Node | Photo / Video wiring |
 |------|----------------------|
 | **Coomfy Ensure SDXL LoRAs** | Photo Studio node **`128`** (passthrough to Power Lora `101`) |
-| **Coomfy Ensure LTX LoRAs** | Video Studio — between diffusion `257` and Power Lora `314` (or baked-in node id in your export) |
+| **Coomfy Ensure LTX LoRAs** | Video Studio — between diffusion model and **Multi LoRA Loader** (main `lora` node; LTX mode with per-layer Vid/Aud/V2A/A2V) |
 | **Coomfy Export Image** | Photo Studio node **`132`** — strip metadata + compress before PreviewImage `131` |
 | **Coomfy Export Audio** | Video Studio node **`319`** — audio prep before mux |
 | **Coomfy Export Video** | Video Studio node **`59`** — metadata-free H.264 mux (Coomfy download target) |
@@ -90,7 +90,7 @@ INSTALL_OPTIONAL=1 bash install_comfyui_custom_nodes.sh   # + Prompt Relay, RIFE
 cd .. && git clone https://github.com/kijai/ComfyUI-PromptRelay.git
 ```
 
-Restart ComfyUI after install. Requires an up-to-date **ComfyUI-LTXVideo** stack. If a node is missing, queued jobs fail at execution time with an unknown node type error. For the full node list on Vast.ai / RunPod, run `install_comfyui_custom_nodes.sh` in this folder (see parent [README.md](../README.md#remote-comfyui-vastai--runpod)).
+Restart ComfyUI after install. Requires an up-to-date **ComfyUI-LTXVideo** stack and **[ComfyUI-MultiLoRALoader](https://github.com/phazei/ComfyUI-MultiLoRALoader)** for Video Studio generation (replaces rgthree Power LoRA on the main LTX `lora` node; distilled passes still use Power LoRA). If a node is missing, queued jobs fail at execution time with an unknown node type error. For the full node list on Vast.ai / RunPod, run `install_comfyui_custom_nodes.sh` in this folder (see parent [README.md](../README.md#remote-comfyui-vastai--runpod)).
 
 Syntax matches the [PromptRelay README](https://github.com/kijai/ComfyUI-PromptRelay): persistent `global_prompt`, pipe-separated local beats, comma-separated frame counts aligned with Coomfy phase timing (`phase_frame_ranges` / timed LoRA schedules).
 

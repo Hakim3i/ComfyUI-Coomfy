@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
 from .coomfy_assets.download import ensure_all_assets, ensure_loras_from_json
+from .coomfy_assets.ltx_lora_inspect import inspect_ltx_lora_filenames
 from .coomfy_export import export_audio, export_images, mux_video
 
 _LOG = "[Coomfy ensure]"
@@ -339,8 +342,8 @@ class CoomfyAssetDownloader:
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("ckpt_name",)
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("ckpt_name", "lora_inspect_json")
     FUNCTION = "download"
     CATEGORY = "Coomfy"
 
@@ -427,8 +430,54 @@ class CoomfyAssetDownloader:
                 parts.append(f"{key}={', '.join(rows)}")
         if parts:
             print(f"{_LOG} downloaded: {'; '.join(parts)}")
+        inspect_rows = applied.get("lora_inspect") or []
+        if inspect_rows:
+            audio_count = sum(1 for row in inspect_rows if row.get("has_pure_audio"))
+            print(
+                f"{_LOG} LTX LoRA inspect: {len(inspect_rows)} file(s), "
+                f"{audio_count} with pure audio"
+            )
         print(f"{_LOG} assets ready; inference checkpoint: {name}")
-        return (name,)
+        return (name, json.dumps(inspect_rows))
+
+
+class CoomfyInspectLTXLoras:
+    """Inspect on-disk LTX LoRA files for pure audio / video layer groups."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "filenames_json": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "[]",
+                        "tooltip": "JSON array of LoRA filenames under models/loras.",
+                    },
+                ),
+            }
+        }
+
+    RETURN_TYPES = ()
+    FUNCTION = "inspect"
+    OUTPUT_NODE = True
+    CATEGORY = "Coomfy"
+
+    def inspect(self, filenames_json: str):
+        try:
+            raw = json.loads(filenames_json or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            raw = []
+        filenames = [
+            str(item).strip()
+            for item in raw
+            if isinstance(item, str) and str(item).strip()
+        ]
+        rows = inspect_ltx_lora_filenames(filenames)
+        payload = json.dumps(rows)
+        print(f"{_LOG} inspected {len(rows)} LTX LoRA file(s)")
+        return {"ui": {"text": [payload]}}
 
 
 class CoomfyAssetDownloadOutput:
@@ -442,7 +491,16 @@ class CoomfyAssetDownloadOutput:
                     "STRING",
                     {"default": "", "tooltip": "Wire from Coomfy Asset Downloader output."},
                 ),
-            }
+            },
+            "optional": {
+                "lora_inspect_json": (
+                    "STRING",
+                    {
+                        "default": "[]",
+                        "tooltip": "Wire lora_inspect_json from Coomfy Asset Downloader.",
+                    },
+                ),
+            },
         }
 
     RETURN_TYPES = ()
@@ -450,15 +508,23 @@ class CoomfyAssetDownloadOutput:
     OUTPUT_NODE = True
     CATEGORY = "Coomfy"
 
-    def output(self, message: str):
-        text = (message or "").strip() or "ok"
-        print(f"{_LOG} download workflow complete: {text}")
-        return {"ui": {"text": [text]}}
+    def output(self, message: str, lora_inspect_json: str = "[]"):
+        msg = (message or "").strip() or "ok"
+        try:
+            inspect_rows = json.loads(lora_inspect_json or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            inspect_rows = []
+        if not isinstance(inspect_rows, list):
+            inspect_rows = []
+        payload = json.dumps({"message": msg, "lora_inspect": inspect_rows})
+        print(f"{_LOG} download workflow complete: {msg}")
+        return {"ui": {"text": [payload]}}
 
 
 NODE_CLASS_MAPPINGS = {
     "CoomfyAssetDownloader": CoomfyAssetDownloader,
     "CoomfyAssetDownloadOutput": CoomfyAssetDownloadOutput,
+    "CoomfyInspectLTXLoras": CoomfyInspectLTXLoras,
     "CoomfyEnsureLoras": CoomfyEnsureLoras,
     "CoomfyEnsureSDXLLoras": CoomfyEnsureLoras,
     "CoomfyEnsureLTXLoras": CoomfyEnsureLoras,
@@ -471,6 +537,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CoomfyAssetDownloader": "Coomfy Asset Downloader",
     "CoomfyAssetDownloadOutput": "Coomfy Asset Download Output",
+    "CoomfyInspectLTXLoras": "Coomfy Inspect LTX LoRAs",
     "CoomfyEnsureLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureSDXLLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureLTXLoras": "Coomfy Ensure LoRAs",
