@@ -1,4 +1,4 @@
-﻿"""ComfyUI-Coomfy — LoRA ensure + export nodes for Photo / Video Lab workflows."""
+"""ComfyUI-Coomfy — LoRA ensure + export nodes for Photo / Video Lab workflows."""
 
 from __future__ import annotations
 
