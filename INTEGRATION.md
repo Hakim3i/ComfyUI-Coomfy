@@ -84,10 +84,6 @@ Video Lab toggle **Prompt Relay (timed phases)** (`ltx_include_time_brackets`) s
 ```bash
 cd ComfyUI/custom_nodes/ComfyUI-Coomfy
 bash install_comfyui_custom_nodes.sh              # full stack (Vast.ai / RunPod)
-INSTALL_OPTIONAL=1 bash install_comfyui_custom_nodes.sh   # + Prompt Relay, RIFE, RTX VSR
-
-# Prompt Relay only:
-cd .. && git clone https://github.com/kijai/ComfyUI-PromptRelay.git
 ```
 
 Restart ComfyUI after install. Requires an up-to-date **ComfyUI-LTXVideo** stack and **[ComfyUI-MultiLoRALoader](https://github.com/phazei/ComfyUI-MultiLoRALoader)** for Video Studio generation (replaces rgthree Power LoRA on the main LTX `lora` node; distilled passes still use Power LoRA). If a node is missing, queued jobs fail at execution time with an unknown node type error. For the full node list on Vast.ai / RunPod, run `install_comfyui_custom_nodes.sh` in this folder (see parent [README.md](../README.md#remote-comfyui-vastai--runpod)).

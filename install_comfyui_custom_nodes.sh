@@ -12,7 +12,6 @@
 set -euo pipefail
 
 PACK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_OPTIONAL="${INSTALL_OPTIONAL:-0}"
 
 resolve_comfyui_dir() {
   if [[ -n "${1:-}" ]]; then
@@ -99,7 +98,7 @@ echo "ComfyUI-Coomfy pack: ${PACK_DIR}"
 echo "ComfyUI: ${COMFYUI_DIR}"
 echo "custom_nodes: ${NODES_DIR}"
 
-# --- required for Photo Lab + Video Lab ---
+# --- Photo Lab + Video Lab (full stack) ---
 # This pack is already here (you are running from it).
 echo "==> ComfyUI-Coomfy already installed at ${PACK_DIR}"
 clone_or_update "rgthree-comfy" "https://github.com/rgthree/rgthree-comfy.git"
@@ -113,15 +112,11 @@ clone_or_update "ComfyUI-Anima-LLLite" "https://github.com/kohya-ss/ComfyUI-Anim
 clone_or_update "ComfyUI-MultiLoRALoader" "https://github.com/phazei/ComfyUI-MultiLoRALoader.git"
 # Folder must be ComfyUI-Crystools (not comfyui-crystools) for web extension paths.
 clone_or_update "ComfyUI-Crystools" "https://github.com/crystian/ComfyUI-Crystools.git"
+clone_or_update "ComfyUI-PromptRelay" "https://github.com/kijai/ComfyUI-PromptRelay.git"
+clone_or_update "ComfyUI-VFI" "https://github.com/GACLove/ComfyUI-VFI.git"
+clone_or_update "Nvidia_RTX_Nodes_ComfyUI" "https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git"
 
 patch_ltxvideo_kornia_compat
-
-if [[ "${INSTALL_OPTIONAL}" == "1" ]]; then
-  echo "--- optional nodes (timed phases, RIFE, RTX VSR) ---"
-  clone_or_update "ComfyUI-PromptRelay" "https://github.com/kijai/ComfyUI-PromptRelay.git"
-  clone_or_update "ComfyUI-VFI" "https://github.com/GACLove/ComfyUI-VFI.git"
-  clone_or_update "Nvidia_RTX_Nodes_ComfyUI" "https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git"
-fi
 
 echo "--- pip requirements (when present) ---"
 for req in "${NODES_DIR}"/*/requirements.txt; do
@@ -138,7 +133,4 @@ Done. Restart ComfyUI, then in Coomfy Settings set:
 
 Video export needs ffmpeg on the ComfyUI host PATH.
 Re-run this script anytime to update packs (git pull --ff-only).
-
-Optional nodes:
-  INSTALL_OPTIONAL=1 bash install_comfyui_custom_nodes.sh ${COMFYUI_DIR}
 EOF
