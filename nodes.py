@@ -3,12 +3,47 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from .coomfy_assets.download import ensure_all_assets, ensure_loras_from_json
 from .coomfy_assets.ltx_lora_inspect import inspect_ltx_lora_filenames
 from .coomfy_export import export_audio, export_images, mux_video
 
 _LOG = "[Coomfy ensure]"
+
+
+def _asset_download_progress(
+    pending: int,
+    *,
+    prompt_id: str | None,
+) -> tuple[Any | None, Any | None]:
+    """Shared ProgressBar + ``coomfy.asset_download`` websocket reporter."""
+    from .coomfy_assets.download import _DownloadProgress
+    from .coomfy_assets.progress import send_asset_download_progress
+
+    if pending <= 0:
+        return None, None
+
+    try:
+        from comfy.utils import ProgressBar
+    except ImportError:
+        ProgressBar = None  # type: ignore[misc, assignment]
+
+    pbar = ProgressBar(pending) if ProgressBar is not None else None
+
+    def on_progress(frac: float) -> None:
+        if pbar is not None:
+            pbar.update_absolute(int(round(frac * pending)), pending)
+
+    def on_status(status: dict) -> None:
+        send_asset_download_progress(status, prompt_id=prompt_id)
+
+    progress = _DownloadProgress(
+        total=pending,
+        on_progress=on_progress if pbar is not None else None,
+        on_status=on_status,
+    )
+    return progress, pbar
 
 
 class CoomfyExportImage:
@@ -294,7 +329,11 @@ class CoomfyPreflightLoras:
                         "tooltip": "Injected by Coomfy webapp from Settings (not read from env).",
                     },
                 ),
-            }
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+                "prompt_id": "PROMPT_ID",
+            },
         }
 
     RETURN_TYPES = ()
@@ -302,12 +341,28 @@ class CoomfyPreflightLoras:
     OUTPUT_NODE = True
     CATEGORY = "Coomfy"
 
-    def preflight(self, loras_json: str, civitai_token: str, hf_token: str):
+    def preflight(
+        self,
+        loras_json: str,
+        civitai_token: str,
+        hf_token: str,
+        unique_id=None,
+        prompt_id=None,
+    ):
+        from .coomfy_assets.download import count_pending_assets
+
+        progress, pbar = _asset_download_progress(
+            count_pending_assets(loras_json=loras_json),
+            prompt_id=str(prompt_id or ""),
+        )
         applied = ensure_loras_from_json(
             loras_json,
             civitai_token=civitai_token or "",
             hf_token=hf_token or "",
+            progress=progress,
         )
+        if pbar is not None and progress is not None:
+            pbar.update_absolute(progress.total, progress.total)
         if applied:
             print(f"{_LOG} preflight LoRAs ready: {', '.join(applied)}")
         return {"ui": {"text": [f"LoRAs ready: {', '.join(applied) or 'none'}"]}}
@@ -339,7 +394,11 @@ class CoomfyAssetDownloader:
                 "vae_json": ("STRING", {"multiline": True, "default": "[]"}),
                 "civitai_token": ("STRING", {"default": ""}),
                 "hf_token": ("STRING", {"default": ""}),
-            }
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+                "prompt_id": "PROMPT_ID",
+            },
         }
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -360,13 +419,11 @@ class CoomfyAssetDownloader:
         vae_json: str,
         civitai_token: str,
         hf_token: str,
+        unique_id=None,
+        prompt_id=None,
     ):
-        try:
-            from comfy.utils import ProgressBar
-        except ImportError:
-            ProgressBar = None  # type: ignore[misc, assignment]
-
         from .coomfy_assets.download import count_pending_assets
+        from .coomfy_assets.progress import send_asset_download_progress
 
         pending = count_pending_assets(
             checkpoints_json=checkpoints_json,
@@ -378,11 +435,22 @@ class CoomfyAssetDownloader:
             text_encoders_json=text_encoders_json,
             vae_json=vae_json,
         )
+        try:
+            from comfy.utils import ProgressBar
+        except ImportError:
+            ProgressBar = None  # type: ignore[misc, assignment]
+
         pbar = ProgressBar(pending) if ProgressBar is not None and pending > 0 else None
 
         def _on_asset_progress(frac: float) -> None:
             if pbar is not None:
                 pbar.update_absolute(int(round(frac * pending)), pending)
+
+        def _on_asset_status(status: dict) -> None:
+            send_asset_download_progress(
+                status,
+                prompt_id=str(prompt_id or ""),
+            )
 
         applied = ensure_all_assets(
             checkpoints_json=checkpoints_json,
@@ -396,8 +464,9 @@ class CoomfyAssetDownloader:
             civitai_token=civitai_token or "",
             hf_token=hf_token or "",
             on_progress=_on_asset_progress if pbar is not None else None,
+            on_status=_on_asset_status if pending > 0 else None,
         )
-        if pbar is not None:
+        if pbar is not None and pending > 0:
             pbar.update_absolute(pending, pending)
         name = (ckpt_name or "").strip()
         if not name:

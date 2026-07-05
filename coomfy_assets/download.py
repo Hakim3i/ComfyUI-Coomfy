@@ -47,19 +47,63 @@ class _DownloadProgress:
 
     total: int
     done: int = 0
+    current_kind: str = ""
+    current_name: str = ""
+    bytes_done: int = 0
+    bytes_total: int = 0
     on_progress: Callable[[float], None] | None = None
+    on_status: Callable[[dict[str, Any]], None] | None = None
 
-    def file_bytes(self, byte_frac: float) -> None:
-        if self.on_progress is None or self.total <= 0:
+    def begin_asset(self, kind: str, filename: str) -> None:
+        self.current_kind = str(kind or "asset").strip()
+        self.current_name = str(filename or "").strip()
+        self.bytes_done = 0
+        self.bytes_total = 0
+        self._notify(file_frac=0.0)
+
+    def file_bytes(
+        self,
+        byte_frac: float,
+        *,
+        bytes_done: int = 0,
+        bytes_total: int = 0,
+    ) -> None:
+        if self.on_progress is None and self.on_status is None:
             return
         inner = max(0.0, min(1.0, byte_frac))
-        self.on_progress(min(1.0, (self.done + inner) / self.total))
+        if bytes_done > 0:
+            self.bytes_done = bytes_done
+        if bytes_total > 0:
+            self.bytes_total = bytes_total
+        if self.on_progress is not None and self.total > 0:
+            self.on_progress(min(1.0, (self.done + inner) / self.total))
+        self._notify(file_frac=inner)
 
     def file_finished(self) -> None:
         self.done += 1
-        if self.on_progress is None or self.total <= 0:
+        if self.on_progress is not None and self.total > 0:
+            self.on_progress(min(1.0, self.done / self.total))
+        self._notify(file_frac=1.0)
+
+    def _notify(self, *, file_frac: float | None = None) -> None:
+        if self.on_status is None:
             return
-        self.on_progress(min(1.0, self.done / self.total))
+        overall = 0.0
+        if self.total > 0:
+            inner = 0.0 if file_frac is None else max(0.0, min(1.0, file_frac))
+            overall = min(1.0, (self.done + inner) / self.total)
+        payload: dict[str, Any] = {
+            "overall_frac": overall,
+            "asset_kind": self.current_kind,
+            "filename": self.current_name,
+            "current": min(self.total, self.done + 1) if self.total else self.done + 1,
+            "total": self.total,
+            "bytes_done": self.bytes_done,
+            "bytes_total": self.bytes_total,
+        }
+        if file_frac is not None:
+            payload["file_frac"] = round(file_frac * 100.0, 1)
+        self.on_status(payload)
 
 
 def _parse_json_array(raw: str, *, log: str) -> list[dict[str, Any]]:
@@ -166,7 +210,7 @@ def _download_file(
     hf_token: str,
     label: str,
     log: str = _LOG,
-    on_file_progress: Callable[[float], None] | None = None,
+    on_file_progress: Callable[..., None] | None = None,
 ) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(target.suffix + ".part")
@@ -210,7 +254,11 @@ def _download_file(
                         flush=True,
                     )
                     if on_file_progress is not None:
-                        on_file_progress(downloaded / total)
+                        on_file_progress(
+                            downloaded / total,
+                            bytes_done=downloaded,
+                            bytes_total=total,
+                        )
         print()
     if on_file_progress is not None:
         on_file_progress(1.0)
@@ -223,6 +271,7 @@ def _ensure_named_file(
     *,
     base_dir: Path,
     log: str,
+    asset_kind: str = "asset",
     civitai_token: str = "",
     hf_token: str = "",
     progress: _DownloadProgress | None = None,
@@ -248,7 +297,22 @@ def _ensure_named_file(
     civitai_token = (civitai_token or "").strip()
     hf_token = (hf_token or "").strip()
     last_error: Exception | None = None
-    file_progress = progress.file_bytes if progress is not None else None
+    if progress is not None:
+        progress.begin_asset(asset_kind, filename)
+
+    def _file_progress(
+        byte_frac: float,
+        *,
+        bytes_done: int = 0,
+        bytes_total: int = 0,
+    ) -> None:
+        if progress is not None:
+            progress.file_bytes(
+                byte_frac,
+                bytes_done=bytes_done,
+                bytes_total=bytes_total,
+            )
+
     for idx, url in enumerate(urls):
         src = "huggingface" if is_huggingface_url(url) else "civitai"
         try:
@@ -261,7 +325,7 @@ def _ensure_named_file(
                 hf_token=hf_token,
                 label=str(name),
                 log=log,
-                on_file_progress=file_progress,
+                on_file_progress=_file_progress if progress is not None else None,
             )
             last_error = None
             break
@@ -290,6 +354,7 @@ def ensure_lora_file(
         info,
         base_dir=loras_dir(),
         log=_LOG,
+        asset_kind="lora",
         civitai_token=civitai_token,
         hf_token=hf_token,
         progress=progress,
@@ -327,6 +392,7 @@ def ensure_controlnet_file(
         info,
         base_dir=controlnet_dir(),
         log=_CN_LOG,
+        asset_kind="controlnet",
         civitai_token=civitai_token,
         hf_token=hf_token,
         progress=progress,
@@ -364,6 +430,7 @@ def ensure_checkpoint_file(
         info,
         base_dir=checkpoints_dir(),
         log=_CKPT_LOG,
+        asset_kind="checkpoint",
         civitai_token=civitai_token,
         hf_token=hf_token,
         progress=progress,
@@ -401,6 +468,7 @@ def ensure_upscale_file(
         info,
         base_dir=upscale_models_dir(),
         log=_UP_LOG,
+        asset_kind="upscaler",
         civitai_token=civitai_token,
         hf_token=hf_token,
         progress=progress,
@@ -449,7 +517,22 @@ def ensure_detailer_file(
     civitai_token = (civitai_token or "").strip()
     hf_token = (hf_token or "").strip()
     last_error: Exception | None = None
-    file_progress = progress.file_bytes if progress is not None else None
+    if progress is not None:
+        progress.begin_asset("detailer", rel)
+
+    def _file_progress(
+        byte_frac: float,
+        *,
+        bytes_done: int = 0,
+        bytes_total: int = 0,
+    ) -> None:
+        if progress is not None:
+            progress.file_bytes(
+                byte_frac,
+                bytes_done=bytes_done,
+                bytes_total=bytes_total,
+            )
+
     for idx, url in enumerate(urls):
         src = "huggingface" if is_huggingface_url(url) else "direct"
         try:
@@ -462,7 +545,7 @@ def ensure_detailer_file(
                 hf_token=hf_token,
                 label=str(name),
                 log=_DT_LOG,
-                on_file_progress=file_progress,
+                on_file_progress=_file_progress if progress is not None else None,
             )
             last_error = None
             break
@@ -512,6 +595,7 @@ def ensure_diffusion_models_from_json(
             entry,
             base_dir=diffusion_models_dir(),
             log=_DM_LOG,
+            asset_kind="diffusion model",
             civitai_token=civitai_token,
             hf_token=hf_token,
             progress=progress,
@@ -534,6 +618,7 @@ def ensure_text_encoders_from_json(
             entry,
             base_dir=text_encoders_dir(),
             log=_TE_LOG,
+            asset_kind="text encoder",
             civitai_token=civitai_token,
             hf_token=hf_token,
             progress=progress,
@@ -556,6 +641,7 @@ def ensure_vae_from_json(
             entry,
             base_dir=vae_dir(),
             log=_VAE_LOG,
+            asset_kind="vae",
             civitai_token=civitai_token,
             hf_token=hf_token,
             progress=progress,
@@ -578,6 +664,7 @@ def ensure_all_assets(
     civitai_token: str = "",
     hf_token: str = "",
     on_progress: Callable[[float], None] | None = None,
+    on_status: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, list[str]]:
     """Download every asset listed in the JSON manifests."""
     civitai_token = (civitai_token or "").strip()
@@ -593,8 +680,12 @@ def ensure_all_assets(
         vae_json=vae_json,
     )
     progress = (
-        _DownloadProgress(total=pending, on_progress=on_progress)
-        if on_progress is not None and pending > 0
+        _DownloadProgress(
+            total=pending,
+            on_progress=on_progress,
+            on_status=on_status,
+        )
+        if pending > 0 and (on_progress is not None or on_status is not None)
         else None
     )
     result = {
