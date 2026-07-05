@@ -86,7 +86,7 @@ cd ComfyUI/custom_nodes/ComfyUI-Coomfy
 bash install_comfyui_custom_nodes.sh              # full stack (Vast.ai / RunPod)
 ```
 
-Restart ComfyUI after install. Requires an up-to-date **ComfyUI-LTXVideo** stack and **[ComfyUI-MultiLoRALoader](https://github.com/phazei/ComfyUI-MultiLoRALoader)** for Video Studio generation (replaces rgthree Power LoRA on the main LTX `lora` node; distilled passes still use Power LoRA). If a node is missing, queued jobs fail at execution time with an unknown node type error. For the full node list on Vast.ai / RunPod, run `install_comfyui_custom_nodes.sh` in this folder (see parent [README.md](../README.md#remote-comfyui-vastai--runpod)).
+Restart ComfyUI after install. Requires an up-to-date **ComfyUI-LTXVideo** stack and **[ComfyUI-MultiLoRALoader](https://github.com/phazei/ComfyUI-MultiLoRALoader)** for Video Studio generation (replaces rgthree Power LoRA on the main LTX `lora` node; distilled passes still use Power LoRA). Photo Lab detailers need **ComfyUI-Impact-Pack** plus **ComfyUI-Impact-Subpack** (`UltralyticsDetectorProvider`); both are installed by `install_comfyui_custom_nodes.sh`. If a node is missing, queued jobs fail at execution time with an unknown node type error. For the full node list on Vast.ai / RunPod, run `install_comfyui_custom_nodes.sh` in this folder (see parent [README.md](../README.md#remote-comfyui-vastai--runpod)).
 
 Syntax matches the [PromptRelay README](https://github.com/kijai/ComfyUI-PromptRelay): persistent `global_prompt`, pipe-separated local beats, comma-separated frame counts aligned with Coomfy phase timing (`phase_frame_ranges` / timed LoRA schedules).
 

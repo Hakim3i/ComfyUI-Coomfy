@@ -108,6 +108,7 @@ clone_or_update "10S-Comfy-nodes" "https://github.com/TenStrip/10S-Comfy-nodes.g
 clone_or_update "ComfyUI-Custom-Scripts" "https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git"
 clone_or_update "ComfyUI-Easy-Use" "https://github.com/yolain/ComfyUI-Easy-Use.git"
 clone_or_update "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
+clone_or_update "ComfyUI-Impact-Subpack" "https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git"
 clone_or_update "ComfyUI-Anima-LLLite" "https://github.com/kohya-ss/ComfyUI-Anima-LLLite.git"
 clone_or_update "ComfyUI-MultiLoRALoader" "https://github.com/phazei/ComfyUI-MultiLoRALoader.git"
 # Folder must be ComfyUI-Crystools (not comfyui-crystools) for web extension paths.
