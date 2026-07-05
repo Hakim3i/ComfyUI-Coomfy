@@ -113,6 +113,8 @@ clone_or_update "ComfyUI-LTXVideo" "https://github.com/kijai/ComfyUI-LTXVideo.gi
 clone_or_update "10S-Comfy-nodes" "https://github.com/TenStrip/10S-Comfy-nodes.git"
 clone_or_update "ComfyUI-Custom-Scripts" "https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git"
 clone_or_update "ComfyUI-Easy-Use" "https://github.com/yolain/ComfyUI-Easy-Use.git"
+clone_or_update "ComfyLiterals" "https://github.com/M1kep/ComfyLiterals.git"
+clone_or_update "RES4LYF" "https://github.com/ClownsharkBatwing/RES4LYF.git"
 clone_or_update "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
 clone_or_update "ComfyUI-Impact-Subpack" "https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git"
 clone_or_update "ComfyUI-Anima-LLLite" "https://github.com/kohya-ss/ComfyUI-Anima-LLLite.git"
