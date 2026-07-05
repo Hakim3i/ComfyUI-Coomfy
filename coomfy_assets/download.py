@@ -7,6 +7,7 @@ Coomfy webapp (never read from ``os.environ``).
 
 from __future__ import annotations
 
+import json
 import struct
 import urllib.error
 import urllib.request
@@ -147,6 +148,39 @@ def _min_bytes_for_kind(asset_kind: str) -> int:
     return 64_000
 
 
+def _safetensors_tensor_names(path: Path) -> tuple[str, ...]:
+    try:
+        from safetensors import safe_open
+
+        with safe_open(str(path), framework="pt") as handle:
+            return tuple(handle.keys())
+    except Exception:
+        return _safetensors_tensor_names_raw(path)
+
+
+def _safetensors_tensor_names_raw(path: Path) -> tuple[str, ...]:
+    try:
+        size = path.stat().st_size
+        with open(path, "rb") as handle:
+            raw_len = handle.read(8)
+            if len(raw_len) < 8:
+                return ()
+            header_len = struct.unpack("<Q", raw_len)[0]
+            if header_len < 2 or header_len > min(size - 8, 50_000_000):
+                return ()
+            header_bytes = handle.read(int(header_len))
+        header = json.loads(header_bytes.decode("utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, ValueError):
+        return ()
+    if not isinstance(header, dict):
+        return ()
+    return tuple(
+        str(key)
+        for key in header
+        if str(key) and str(key) != "__metadata__"
+    )
+
+
 def _is_plausible_safetensors(path: Path, *, min_bytes: int) -> bool:
     try:
         size = path.stat().st_size
@@ -175,6 +209,70 @@ def _is_plausible_safetensors(path: Path, *, min_bytes: int) -> bool:
     return bool(header_json.lstrip().startswith(b"{"))
     
 
+def _is_plausible_checkpoint_file(path: Path, *, min_bytes: int) -> bool:
+    """Reject LoRAs, HTML stubs, and diffusion-only files in checkpoints/."""
+    if not _is_plausible_safetensors(path, min_bytes=min_bytes):
+        return False
+    names = _safetensors_tensor_names(path)
+    if not names:
+        return False
+    count = len(names)
+    if count < 80:
+        return False
+    blob = " ".join(names).lower()
+    lora_named = sum(1 for name in names if "lora" in name.lower())
+    if lora_named and lora_named >= max(3, count // 2):
+        return False
+    full_ckpt_markers = (
+        "model.diffusion_model",
+        "cond_stage_model",
+        "first_stage_model",
+        "conditioner.embedders",
+        "conditioner.",
+    )
+    if any(marker in blob for marker in full_ckpt_markers):
+        return True
+    # Misplaced diffusion-only UNET files fail CheckpointLoaderSimple.
+    if count < 400:
+        return False
+    return "diffusion_model" in blob
+
+
+def _is_plausible_lora_file(path: Path, *, min_bytes: int) -> bool:
+    if not _is_plausible_safetensors(path, min_bytes=min_bytes):
+        return False
+    names = _safetensors_tensor_names(path)
+    if not names:
+        return False
+    if len(names) > 2000:
+        return False
+    blob = " ".join(names).lower()
+    if any(
+        marker in blob
+        for marker in (
+            "model.diffusion_model",
+            "cond_stage_model",
+            "first_stage_model",
+        )
+    ):
+        return False
+    return "lora" in blob or len(names) < 400
+
+
+def _file_passes_validation(path: Path, *, asset_kind: str, min_bytes: int) -> bool:
+    kind = str(asset_kind or "").strip().lower()
+    if path.suffix.lower() != ".safetensors":
+        try:
+            return path.stat().st_size >= min_bytes
+        except OSError:
+            return False
+    if kind == "checkpoint":
+        return _is_plausible_checkpoint_file(path, min_bytes=min_bytes)
+    if kind == "lora":
+        return _is_plausible_lora_file(path, min_bytes=min_bytes)
+    return _is_plausible_safetensors(path, min_bytes=min_bytes)
+
+
 def _needs_download(
     path: Path,
     *,
@@ -184,16 +282,18 @@ def _needs_download(
     if not path.is_file():
         return True
     min_bytes = _min_bytes_for_kind(asset_kind)
-    if (
-        validate_safetensors
-        and path.suffix.lower() == ".safetensors"
-        and not _is_plausible_safetensors(path, min_bytes=min_bytes)
+    if validate_safetensors and not _file_passes_validation(
+        path, asset_kind=asset_kind, min_bytes=min_bytes
     ):
         try:
-            print(
-                f"[Coomfy ensure] removing corrupt/incomplete model "
-                f"{path.name} ({path.stat().st_size} bytes)"
-            )
+            size = path.stat().st_size
+        except OSError:
+            size = 0
+        print(
+            f"[Coomfy ensure] removing invalid {asset_kind} "
+            f"{path.name} ({size} bytes)"
+        )
+        try:
             path.unlink()
         except OSError:
             pass
