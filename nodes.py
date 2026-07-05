@@ -236,6 +236,59 @@ class CoomfyExportVideo:
         }
 
 
+class CoomfyExportVideoPassthrough(CoomfyExportVideo):
+    """Export pass-1 MP4 then passthrough latent so pass-2 cannot start first."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        types = super().INPUT_TYPES()
+        types["required"]["passthrough_latent"] = ("LATENT",)
+        return types
+
+    RETURN_TYPES = ("LATENT",)
+    RETURN_NAMES = ("latent",)
+    OUTPUT_NODE = True
+
+    def export(
+        self,
+        images,
+        frame_rate: float,
+        filename_prefix: str,
+        enabled: bool,
+        crf: int,
+        audio_bitrate_kbps: int,
+        passthrough_latent,
+        audio=None,
+    ):
+        import folder_paths
+
+        output_dir = folder_paths.get_temp_directory()
+        entry = mux_video(
+            images,
+            frame_rate=frame_rate,
+            audio=audio,
+            filename_prefix=filename_prefix,
+            output_dir=output_dir,
+            enabled=enabled,
+            crf=crf,
+            audio_bitrate_kbps=audio_bitrate_kbps,
+        )
+        return {
+            "ui": {
+                "gifs": [
+                    {
+                        "filename": entry["filename"],
+                        "subfolder": entry["subfolder"],
+                        "type": entry["type"],
+                        "format": entry["format"],
+                        "frame_rate": entry["frame_rate"],
+                    }
+                ]
+            },
+            "result": (passthrough_latent,),
+        }
+
+
 class CoomfyEnsureLoras:
     """Download LoRAs from ``loras_json`` (SDXL, LTX, etc.), passthrough model/clip."""
 
@@ -601,6 +654,7 @@ NODE_CLASS_MAPPINGS = {
     "CoomfyExportImage": CoomfyExportImage,
     "CoomfyExportAudio": CoomfyExportAudio,
     "CoomfyExportVideo": CoomfyExportVideo,
+    "CoomfyExportVideoPassthrough": CoomfyExportVideoPassthrough,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -614,4 +668,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CoomfyExportImage": "Coomfy Export Image",
     "CoomfyExportAudio": "Coomfy Export Audio",
     "CoomfyExportVideo": "Coomfy Export Video",
+    "CoomfyExportVideoPassthrough": "Coomfy Export Video (Passthrough)",
 }
