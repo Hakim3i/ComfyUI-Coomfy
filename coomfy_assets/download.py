@@ -25,6 +25,7 @@ from .paths import (
     checkpoints_dir,
     controlnet_dir,
     diffusion_models_dir,
+    latent_upscale_models_dir,
     loras_dir,
     sams_dir,
     text_encoders_dir,
@@ -310,6 +311,14 @@ def _needs_download(
     return False
 
 
+def _upscaler_target_path(entry: dict[str, Any]) -> Path:
+    filename = str(entry.get("filename") or "").strip()
+    folder = str(entry.get("folder") or "").strip().lower()
+    if folder == "latent_upscale_models":
+        return latent_upscale_models_dir() / filename
+    return upscale_models_dir() / filename
+
+
 def count_pending_assets(
     *,
     checkpoints_json: str = "",
@@ -342,7 +351,7 @@ def count_pending_assets(
     for entry in _parse_json_array(upscalers_json, log=_UP_LOG):
         filename = str(entry.get("filename") or "").strip()
         if filename and _needs_download(
-            upscale_models_dir() / filename, asset_kind="upscaler"
+            _upscaler_target_path(entry), asset_kind="upscaler"
         ):
             pending += 1
     for entry in _parse_json_array(detailers_json, log=_DT_LOG):
@@ -658,7 +667,7 @@ def ensure_upscale_file(
 ) -> Path:
     return _ensure_named_file(
         info,
-        base_dir=upscale_models_dir(),
+        base_dir=_upscaler_target_path(info).parent,
         log=_UP_LOG,
         asset_kind="upscaler",
         civitai_token=civitai_token,

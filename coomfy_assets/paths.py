@@ -40,6 +40,11 @@ def upscale_models_dir() -> Path:
     return _resolve_dir("upscale_models", "upscale_models")
 
 
+def latent_upscale_models_dir() -> Path:
+    """Resolve ComfyUI ``models/latent_upscale_models`` (LTX spatial upscaler)."""
+    return _resolve_dir("latent_upscale_models", "latent_upscale_models")
+
+
 def ultralytics_dir() -> Path:
     """Resolve ComfyUI ``models/ultralytics`` (Impact Pack detailer detectors)."""
     return _resolve_dir("ultralytics", "ultralytics")
