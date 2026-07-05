@@ -7,6 +7,7 @@ Coomfy webapp (never read from ``os.environ``).
 
 from __future__ import annotations
 
+import struct
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -49,14 +50,16 @@ class _DownloadProgress:
     done: int = 0
     current_kind: str = ""
     current_name: str = ""
+    current_display: str = ""
     bytes_done: int = 0
     bytes_total: int = 0
     on_progress: Callable[[float], None] | None = None
     on_status: Callable[[dict[str, Any]], None] | None = None
 
-    def begin_asset(self, kind: str, filename: str) -> None:
+    def begin_asset(self, kind: str, filename: str, display_name: str = "") -> None:
         self.current_kind = str(kind or "asset").strip()
         self.current_name = str(filename or "").strip()
+        self.current_display = str(display_name or filename or "").strip()
         self.bytes_done = 0
         self.bytes_total = 0
         self._notify(file_frac=0.0)
@@ -96,6 +99,7 @@ class _DownloadProgress:
             "overall_frac": overall,
             "asset_kind": self.current_kind,
             "filename": self.current_name,
+            "display_name": self.current_display,
             "current": min(self.total, self.done + 1) if self.total else self.done + 1,
             "total": self.total,
             "bytes_done": self.bytes_done,
@@ -134,6 +138,78 @@ def _model_target_path(base_dir: Path, filename: str) -> Path:
     return base_dir / filename
 
 
+def _min_bytes_for_kind(asset_kind: str) -> int:
+    kind = str(asset_kind or "").strip().lower()
+    if kind in {"checkpoint", "diffusion model", "text encoder", "vae"}:
+        return 10_000_000
+    if kind == "lora":
+        return 50_000
+    return 64_000
+
+
+def _is_plausible_safetensors(path: Path, *, min_bytes: int) -> bool:
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return False
+    if size < min_bytes:
+        return False
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(256)
+    except OSError:
+        return False
+    if not head:
+        return False
+    lowered = head.lstrip().lower()
+    if lowered.startswith((b"<!doctype", b"<html", b"<head", b"{", b"[")):
+        return False
+    if len(head) < 8:
+        return False
+    header_len = struct.unpack("<Q", head[:8])[0]
+    if header_len < 2 or header_len > min(size - 8, 50_000_000):
+        return False
+    with open(path, "rb") as handle:
+        handle.seek(8)
+        header_json = handle.read(min(int(header_len), 4096))
+    return bool(header_json.lstrip().startswith(b"{"))
+    
+
+def _needs_download(
+    path: Path,
+    *,
+    asset_kind: str = "asset",
+    validate_safetensors: bool = True,
+) -> bool:
+    if not path.is_file():
+        return True
+    min_bytes = _min_bytes_for_kind(asset_kind)
+    if (
+        validate_safetensors
+        and path.suffix.lower() == ".safetensors"
+        and not _is_plausible_safetensors(path, min_bytes=min_bytes)
+    ):
+        try:
+            print(
+                f"[Coomfy ensure] removing corrupt/incomplete model "
+                f"{path.name} ({path.stat().st_size} bytes)"
+            )
+            path.unlink()
+        except OSError:
+            pass
+        return True
+    try:
+        if path.stat().st_size < min_bytes:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+            return True
+    except OSError:
+        return True
+    return False
+
+
 def count_pending_assets(
     *,
     checkpoints_json: str = "",
@@ -149,35 +225,51 @@ def count_pending_assets(
     pending = 0
     for entry in _parse_json_array(checkpoints_json, log=_CKPT_LOG):
         filename = str(entry.get("filename") or "").strip()
-        if filename and not (checkpoints_dir() / filename).is_file():
+        if filename and _needs_download(
+            checkpoints_dir() / filename, asset_kind="checkpoint"
+        ):
             pending += 1
     for entry in _parse_json_array(loras_json, log=_LOG):
         filename = str(entry.get("filename") or "").strip()
-        if filename and not (loras_dir() / filename).is_file():
+        if filename and _needs_download(loras_dir() / filename, asset_kind="lora"):
             pending += 1
     for entry in _parse_json_array(controlnets_json, log=_CN_LOG):
         filename = str(entry.get("filename") or "").strip()
-        if filename and not (controlnet_dir() / filename).is_file():
+        if filename and _needs_download(
+            controlnet_dir() / filename, asset_kind="controlnet"
+        ):
             pending += 1
     for entry in _parse_json_array(upscalers_json, log=_UP_LOG):
         filename = str(entry.get("filename") or "").strip()
-        if filename and not (upscale_models_dir() / filename).is_file():
+        if filename and _needs_download(
+            upscale_models_dir() / filename, asset_kind="upscaler"
+        ):
             pending += 1
     for entry in _parse_json_array(detailers_json, log=_DT_LOG):
         target = _detailer_target_path(entry)
-        if target is not None and not target.is_file():
+        if target is not None and _needs_download(
+            target, asset_kind="detailer", validate_safetensors=False
+        ):
             pending += 1
     for entry in _parse_json_array(diffusion_models_json, log=_DM_LOG):
         filename = str(entry.get("filename") or "").strip()
-        if filename and not _model_target_path(diffusion_models_dir(), filename).is_file():
+        if filename and _needs_download(
+            _model_target_path(diffusion_models_dir(), filename),
+            asset_kind="diffusion model",
+        ):
             pending += 1
     for entry in _parse_json_array(text_encoders_json, log=_TE_LOG):
         filename = str(entry.get("filename") or "").strip()
-        if filename and not _model_target_path(text_encoders_dir(), filename).is_file():
+        if filename and _needs_download(
+            _model_target_path(text_encoders_dir(), filename),
+            asset_kind="text encoder",
+        ):
             pending += 1
     for entry in _parse_json_array(vae_json, log=_VAE_LOG):
         filename = str(entry.get("filename") or "").strip()
-        if filename and not _model_target_path(vae_dir(), filename).is_file():
+        if filename and _needs_download(
+            _model_target_path(vae_dir(), filename), asset_kind="vae"
+        ):
             pending += 1
     return pending
 
@@ -283,7 +375,7 @@ def _ensure_named_file(
         raise RuntimeError(f"{log} catalog entry missing filename ({name!r})")
     filename = str(filename).strip()
     target = _model_target_path(base_dir, filename)
-    if target.is_file():
+    if not _needs_download(target, asset_kind=asset_kind):
         print(f"{log} {filename}: on disk ({_format_mb(target.stat().st_size)})")
         return target
 
@@ -298,7 +390,7 @@ def _ensure_named_file(
     hf_token = (hf_token or "").strip()
     last_error: Exception | None = None
     if progress is not None:
-        progress.begin_asset(asset_kind, filename)
+        progress.begin_asset(asset_kind, filename, str(name))
 
     def _file_progress(
         byte_frac: float,
@@ -506,7 +598,7 @@ def ensure_detailer_file(
     target = _detailer_target_path(info)
     if target is None:
         raise RuntimeError(f"{_DT_LOG} catalog entry missing folder/path ({name!r})")
-    if target.is_file():
+    if not _needs_download(target, asset_kind="detailer", validate_safetensors=False):
         print(f"{_DT_LOG} {rel}: on disk ({_format_mb(target.stat().st_size)})")
         return target
 
@@ -518,7 +610,7 @@ def ensure_detailer_file(
     hf_token = (hf_token or "").strip()
     last_error: Exception | None = None
     if progress is not None:
-        progress.begin_asset("detailer", rel)
+        progress.begin_asset("detailer", rel, str(name))
 
     def _file_progress(
         byte_frac: float,

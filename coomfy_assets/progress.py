@@ -8,7 +8,7 @@ from typing import Any
 def format_asset_download_message(data: dict[str, Any]) -> str:
     """Human-readable status line for the Coomfy ComfyUI status bar."""
     kind = str(data.get("asset_kind") or "asset").replace("_", " ")
-    name = str(data.get("filename") or "").strip()
+    name = str(data.get("display_name") or data.get("filename") or "").strip()
     current = data.get("current")
     total = data.get("total")
     file_pct = data.get("file_pct")
@@ -59,6 +59,9 @@ def send_asset_download_progress(
     data: dict[str, Any] = {
         "asset_kind": str(status.get("asset_kind") or ""),
         "filename": str(status.get("filename") or ""),
+        "display_name": str(
+            status.get("display_name") or status.get("name") or status.get("filename") or ""
+        ),
         "current": status.get("current"),
         "total": status.get("total"),
         "file_pct": status.get("file_pct", status.get("file_frac")),
