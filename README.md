@@ -44,6 +44,8 @@ bash install_comfyui_custom_nodes.sh   # clones/updates all other required custo
 
 ComfyUI root is inferred as `../..`. Override with an argument or `COMFYUI_PATH` if needed. Re-run the script to update packs.
 
+The installer also pulls **ComfyUI-Crystools** (CPU/GPU monitor for Coomfy lab status badges) and patches **ComfyUI-LTXVideo** for `kornia>=0.8` (`pad` import).
+
 Restart ComfyUI. Photo / Video Lab queueing requires these node types on the ComfyUI host.
 
 **Video export** needs `ffmpeg` on the ComfyUI host `PATH` (or `imageio-ffmpeg` in the ComfyUI Python env).

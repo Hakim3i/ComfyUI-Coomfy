@@ -63,6 +63,38 @@ clone_or_update() {
   fi
 }
 
+PYTHON_BIN="${COMFYUI_PYTHON:-python3}"
+
+# kornia>=0.8 dropped re-export of pad from kornia.geometry.transform.pyramid;
+# LTXVideo still imports it there — use torch.nn.functional.pad instead.
+patch_ltxvideo_kornia_compat() {
+  local pyramid="${NODES_DIR}/ComfyUI-LTXVideo/pyramid_blending.py"
+  [[ -f "${pyramid}" ]] || return 0
+  echo "==> ComfyUI-LTXVideo kornia compat (${pyramid})"
+  "${PYTHON_BIN}" - "${pyramid}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+if "from torch.nn.functional import pad" in text:
+    print("  already patched")
+    raise SystemExit(0)
+if "pad," not in text or "kornia.geometry.transform.pyramid" not in text:
+    print("  warning: unexpected pyramid_blending.py; manual fix may be needed", file=sys.stderr)
+    raise SystemExit(0)
+text = re.sub(r"^[ \t]*pad,\n", "", text, count=1, flags=re.MULTILINE)
+text = text.replace(
+    "from torch import Tensor\n",
+    "from torch import Tensor\nfrom torch.nn.functional import pad\n",
+    1,
+)
+path.write_text(text, encoding="utf-8")
+print("  patched ok")
+PY
+}
+
 echo "ComfyUI-Coomfy pack: ${PACK_DIR}"
 echo "ComfyUI: ${COMFYUI_DIR}"
 echo "custom_nodes: ${NODES_DIR}"
@@ -79,6 +111,10 @@ clone_or_update "ComfyUI-Easy-Use" "https://github.com/yolain/ComfyUI-Easy-Use.g
 clone_or_update "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
 clone_or_update "ComfyUI-Anima-LLLite" "https://github.com/kohya-ss/ComfyUI-Anima-LLLite.git"
 clone_or_update "ComfyUI-MultiLoRALoader" "https://github.com/phazei/ComfyUI-MultiLoRALoader.git"
+# Folder must be ComfyUI-Crystools (not comfyui-crystools) for web extension paths.
+clone_or_update "ComfyUI-Crystools" "https://github.com/crystian/ComfyUI-Crystools.git"
+
+patch_ltxvideo_kornia_compat
 
 if [[ "${INSTALL_OPTIONAL}" == "1" ]]; then
   echo "--- optional nodes (timed phases, RIFE, RTX VSR) ---"
@@ -88,7 +124,6 @@ if [[ "${INSTALL_OPTIONAL}" == "1" ]]; then
 fi
 
 echo "--- pip requirements (when present) ---"
-PYTHON_BIN="${COMFYUI_PYTHON:-python3}"
 for req in "${NODES_DIR}"/*/requirements.txt; do
   [[ -f "${req}" ]] || continue
   echo "==> ${PYTHON_BIN} -m pip install -r ${req}"
