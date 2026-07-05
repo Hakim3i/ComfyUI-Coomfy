@@ -131,6 +131,5 @@ Done. Restart ComfyUI, then in Coomfy Settings set:
   COMFYUI_PHOTO_BASE_URL = http://<gpu-host>:8188
   COMFYUI_VIDEO_BASE_URL = http://<gpu-host>:8188
 
-Video export needs ffmpeg on the ComfyUI host PATH.
 Re-run this script anytime to update packs (git pull --ff-only).
 EOF

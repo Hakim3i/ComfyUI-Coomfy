@@ -48,8 +48,6 @@ The installer also pulls **ComfyUI-Crystools** (CPU/GPU monitor for Coomfy lab s
 
 Restart ComfyUI. Photo / Video Lab queueing requires these node types on the ComfyUI host.
 
-**Video export** needs `ffmpeg` on the ComfyUI host `PATH` (or `imageio-ffmpeg` in the ComfyUI Python env).
-
 ## Scope
 
 - **Multi-asset preflight** — `CoomfyAssetDownloader` fetches checkpoints, LoRAs, ControlNets, upscalers, detailer detectors + SAM, diffusion models, text encoders, and VAE before generation.
