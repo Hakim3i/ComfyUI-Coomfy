@@ -44,6 +44,18 @@ bash install_comfyui_custom_nodes.sh   # clones/updates all other required custo
 
 ComfyUI root is inferred as `../..`. Override with an argument or `COMFYUI_PATH` if needed. Re-run the script to update packs.
 
+**Use ComfyUI's Python for pip installs** — the script installs each pack's `requirements.txt`. Point it at the venv or embedded interpreter ComfyUI actually runs:
+
+```bash
+# Linux / RunPod venv
+COMFYUI_PYTHON=/workspace/ComfyUI/venv/bin/python bash install_comfyui_custom_nodes.sh
+
+# Windows portable (from custom_nodes/ComfyUI-Coomfy)
+COMFYUI_PYTHON=../../python_embeded/python.exe bash install_comfyui_custom_nodes.sh
+```
+
+Or activate the ComfyUI venv first; the script then uses that environment's `python3`.
+
 The installer also pulls **ComfyUI-Crystools** (CPU/GPU monitor for Coomfy lab status badges) and patches **ComfyUI-LTXVideo** for `kornia>=0.8` (`pad` import).
 
 Restart ComfyUI. Photo / Video Lab queueing requires these node types on the ComfyUI host.

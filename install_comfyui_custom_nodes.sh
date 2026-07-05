@@ -8,6 +8,11 @@
 # ComfyUI root is auto-detected (../.. from this folder). Override:
 #   bash install_comfyui_custom_nodes.sh /path/to/ComfyUI
 #   COMFYUI_PATH=/workspace/ComfyUI bash install_comfyui_custom_nodes.sh
+#
+# Pip installs must use the same Python as ComfyUI (not system pip):
+#   COMFYUI_PYTHON=/workspace/ComfyUI/venv/bin/python bash install_comfyui_custom_nodes.sh
+# Windows portable (from this folder):
+#   COMFYUI_PYTHON=../../python_embeded/python.exe bash install_comfyui_custom_nodes.sh
 
 set -euo pipefail
 
@@ -103,6 +108,7 @@ echo "custom_nodes: ${NODES_DIR}"
 echo "==> ComfyUI-Coomfy already installed at ${PACK_DIR}"
 clone_or_update "rgthree-comfy" "https://github.com/rgthree/rgthree-comfy.git"
 clone_or_update "ComfyUI-KJNodes" "https://github.com/kijai/ComfyUI-KJNodes.git"
+clone_or_update "comfyui_controlnet_aux" "https://github.com/Fannovel16/comfyui_controlnet_aux.git"
 clone_or_update "ComfyUI-LTXVideo" "https://github.com/kijai/ComfyUI-LTXVideo.git"
 clone_or_update "10S-Comfy-nodes" "https://github.com/TenStrip/10S-Comfy-nodes.git"
 clone_or_update "ComfyUI-Custom-Scripts" "https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git"
@@ -131,6 +137,10 @@ cat <<EOF
 Done. Restart ComfyUI, then in Coomfy Settings set:
   COMFYUI_PHOTO_BASE_URL = http://<gpu-host>:8188
   COMFYUI_VIDEO_BASE_URL = http://<gpu-host>:8188
+
+If pip installs failed, re-run with the Python ComfyUI actually uses:
+  COMFYUI_PYTHON=/path/to/ComfyUI/venv/bin/python bash install_comfyui_custom_nodes.sh
+  (Windows portable: COMFYUI_PYTHON=../../python_embeded/python.exe)
 
 Re-run this script anytime to update packs (git pull --ff-only).
 EOF
