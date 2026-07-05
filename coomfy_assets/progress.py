@@ -55,18 +55,20 @@ def send_asset_download_progress(
     if server is None:
         return
 
+    pid = (prompt_id or "").strip()
     data: dict[str, Any] = {
-        "prompt_id": (prompt_id or "").strip(),
         "asset_kind": str(status.get("asset_kind") or ""),
         "filename": str(status.get("filename") or ""),
         "current": status.get("current"),
         "total": status.get("total"),
-        "file_pct": status.get("file_pct"),
+        "file_pct": status.get("file_pct", status.get("file_frac")),
         "overall_pct": round(float(status.get("overall_frac", 0.0)) * 100.0, 1),
         "bytes_done": status.get("bytes_done"),
         "bytes_total": status.get("bytes_total"),
     }
+    if pid:
+        data["prompt_id"] = pid
     data["message"] = str(status.get("message") or format_asset_download_message(data))
 
-    sid = getattr(server, "client_id", None)
-    server.send_sync("coomfy.asset_download", data, sid)
+    # Broadcast to every /ws client (Coomfy webapp opens its own clientId).
+    server.send_sync("coomfy.asset_download", data, None)
