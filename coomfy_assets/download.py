@@ -311,10 +311,16 @@ def _needs_download(
     return False
 
 
+def _is_ltx_latent_spatial_upscaler(filename: str) -> bool:
+    """LTX spatial upscalers must live under ``models/latent_upscale_models``."""
+    name = str(filename or "").strip().lower()
+    return name.startswith("ltx-") and "spatial-upscaler" in name
+
+
 def _upscaler_target_path(entry: dict[str, Any]) -> Path:
     filename = str(entry.get("filename") or "").strip()
     folder = str(entry.get("folder") or "").strip().lower()
-    if folder == "latent_upscale_models":
+    if folder == "latent_upscale_models" or _is_ltx_latent_spatial_upscaler(filename):
         return latent_upscale_models_dir() / filename
     return upscale_models_dir() / filename
 
