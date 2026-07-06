@@ -30,10 +30,11 @@ _LOG = "[ComfyUI-Coomfy]"
 
 def _setup_bundled_ffmpeg() -> None:
     try:
-        from .coomfy_export.ffmpeg_install import ensure_bundled_ffmpeg
+        from .coomfy_export.ffmpeg_install import ensure_bundled_ffmpeg, ffmpeg_supports_encoder
 
         path = ensure_bundled_ffmpeg()
-        print(f"{_LOG} ffmpeg ready: {path}")
+        encoder = "h264_nvenc" if ffmpeg_supports_encoder(path, "h264_nvenc") else "libx264"
+        print(f"{_LOG} ffmpeg ready: {path} ({encoder})")
     except Exception as exc:
         print(f"{_LOG} ffmpeg setup failed: {exc}")
 

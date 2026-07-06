@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import tempfile
 import wave
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Any
 
 import numpy as np
 
-from .ffmpeg_util import find_ffmpeg, run_ffmpeg
+from .ffmpeg_util import find_ffmpeg, ffmpeg_supports_encoder, run_ffmpeg
 from .tensors import image_tensor_to_pil
 
 
@@ -40,6 +41,107 @@ def _write_wav(path: Path, waveform, sample_rate: int) -> None:
     wf.setsampwidth(2)
     wf.setframerate(int(sample_rate))
     wf.writeframes(pcm.tobytes())
+
+
+def _frame_to_rgb24(frame) -> np.ndarray:
+  """One ComfyUI IMAGE row -> contiguous H×W×3 uint8."""
+  array = np.clip(255.0 * frame.detach().cpu().numpy(), 0, 255).astype(np.uint8)
+  if array.ndim == 4:
+    array = array[0]
+  if array.shape[-1] > 3:
+    array = array[..., :3]
+  return np.ascontiguousarray(array)
+
+
+def _mux_via_pipe(
+    ffmpeg: str,
+    frames: list,
+    *,
+    frame_rate: float,
+    file_path: Path,
+    audio_path: Path | None,
+    crf_value: int,
+    audio_kbps: int,
+) -> None:
+  """Stream RGB frames on stdin — avoids per-frame PNG disk I/O."""
+  if not frames:
+    raise ValueError("mux_video requires at least one frame")
+  first = _frame_to_rgb24(frames[0])
+  height, width = int(first.shape[0]), int(first.shape[1])
+  use_nvenc = ffmpeg_supports_encoder(ffmpeg, "h264_nvenc")
+
+  args = [
+    ffmpeg,
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-f",
+    "rawvideo",
+    "-pix_fmt",
+    "rgb24",
+    "-s",
+    f"{width}x{height}",
+    "-r",
+    str(frame_rate),
+    "-i",
+    "pipe:0",
+  ]
+  if audio_path is not None:
+    args.extend(["-i", str(audio_path)])
+  if use_nvenc:
+    args.extend(
+      [
+        "-c:v",
+        "h264_nvenc",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "p4",
+        "-tune",
+        "hq",
+        "-rc",
+        "vbr",
+        "-cq",
+        str(max(0, min(51, crf_value))),
+      ]
+    )
+  else:
+    args.extend(
+      [
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "faster",
+        "-crf",
+        str(crf_value),
+      ]
+    )
+  args.extend(["-movflags", "+faststart", "-map_metadata", "-1"])
+  if audio_path is not None:
+    args.extend(["-c:a", "aac", "-b:a", f"{audio_kbps}k", "-shortest"])
+  else:
+    args.append("-an")
+  args.append(str(file_path))
+
+  proc = subprocess.Popen(
+    args,
+    stdin=subprocess.PIPE,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.PIPE,
+  )
+  assert proc.stdin is not None
+  try:
+    proc.stdin.write(first.tobytes())
+    for frame in frames[1:]:
+      proc.stdin.write(_frame_to_rgb24(frame).tobytes())
+  finally:
+    proc.stdin.close()
+  stderr = (proc.stderr.read() if proc.stderr else b"").decode("utf-8", errors="replace")
+  if proc.wait() != 0:
+    raise RuntimeError(stderr.strip() or "ffmpeg pipe mux failed")
 
 
 def mux_video(
@@ -82,61 +184,67 @@ def mux_video(
   filename = f"{prefix}_{counter:05}.mp4"
   file_path = target_dir / filename
 
+  frames = list(images)
   ffmpeg = find_ffmpeg()
   with tempfile.TemporaryDirectory(prefix="coomfy_export_") as tmp:
     tmp_path = Path(tmp)
-    frame_paths: list[Path] = []
-    for index, frame in enumerate(images):
-      frame_path = tmp_path / f"frame_{index:06d}.png"
-      image_tensor_to_pil(frame).save(frame_path, format="PNG", compress_level=3)
-      frame_paths.append(frame_path)
-
     audio_path: Path | None = None
     if audio is not None and audio.get("waveform") is not None:
       audio_path = tmp_path / "audio.wav"
       _write_wav(audio_path, audio["waveform"], int(audio["sample_rate"]))
 
-    args = [
-      ffmpeg,
-      "-y",
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-framerate",
-      str(frame_rate),
-      "-i",
-      str(tmp_path / "frame_%06d.png"),
-    ]
-    if audio_path is not None:
-      args.extend(["-i", str(audio_path)])
-    args.extend(
-      [
-        "-c:v",
-        "libx264",
-        "-pix_fmt",
-        "yuv420p",
-        "-crf",
-        str(crf_value),
-        "-movflags",
-        "+faststart",
-        "-map_metadata",
-        "-1",
+    try:
+      _mux_via_pipe(
+        ffmpeg,
+        frames,
+        frame_rate=frame_rate,
+        file_path=file_path,
+        audio_path=audio_path,
+        crf_value=crf_value,
+        audio_kbps=audio_kbps,
+      )
+    except Exception:
+      # Fallback: PNG sequence (older ffmpeg / pipe issues).
+      frame_paths: list[Path] = []
+      for index, frame in enumerate(frames):
+        frame_path = tmp_path / f"frame_{index:06d}.png"
+        image_tensor_to_pil(frame).save(frame_path, format="PNG", compress_level=3)
+        frame_paths.append(frame_path)
+      args = [
+        ffmpeg,
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-framerate",
+        str(frame_rate),
+        "-i",
+        str(tmp_path / "frame_%06d.png"),
       ]
-    )
-    if audio_path is not None:
+      if audio_path is not None:
+        args.extend(["-i", str(audio_path)])
       args.extend(
         [
-          "-c:a",
-          "aac",
-          "-b:a",
-          f"{audio_kbps}k",
-          "-shortest",
+          "-c:v",
+          "libx264",
+          "-pix_fmt",
+          "yuv420p",
+          "-preset",
+          "faster",
+          "-crf",
+          str(crf_value),
+          "-movflags",
+          "+faststart",
+          "-map_metadata",
+          "-1",
         ]
       )
-    else:
-      args.append("-an")
-    args.append(str(file_path))
-    run_ffmpeg(args)
+      if audio_path is not None:
+        args.extend(["-c:a", "aac", "-b:a", f"{audio_kbps}k", "-shortest"])
+      else:
+        args.append("-an")
+      args.append(str(file_path))
+      run_ffmpeg(args)
 
   rel_type = "output" if str(output_dir) == folder_paths.get_output_directory() else "temp"
   return {

@@ -60,7 +60,7 @@ The installer also pulls **ComfyUI-Crystools** (CPU/GPU monitor for Coomfy lab s
 
 Restart ComfyUI. Photo / Video Lab queueing requires these node types on the ComfyUI host.
 
-**Video export:** on first load ComfyUI-Coomfy installs `imageio-ffmpeg` (if needed) and copies ffmpeg into `bin/`. `Coomfy Export Video` uses that bundled binary — not WinGet/PATH symlinks.
+**Video export:** on first load ComfyUI-Coomfy downloads a full **BtbN ffmpeg** build (NVENC on Windows/Linux NVIDIA hosts) into `bin/`. Falls back to imageio-ffmpeg (CPU only) if the download fails. Startup log shows `h264_nvenc` or `libx264`.
 
 ## Scope
 

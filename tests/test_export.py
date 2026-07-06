@@ -12,6 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from coomfy_export.audio import export_audio
+from coomfy_export.ffmpeg_install import _btbn_archive_url, bundled_ffmpeg_path
 from coomfy_export.ffmpeg_util import _looks_like_ffmpeg
 from coomfy_export.image import export_images
 from coomfy_export.tensors import audio_dict, encode_image_bytes, image_tensor_to_pil
@@ -57,11 +58,21 @@ def test_export_audio_passthrough_when_disabled():
 
 
 def test_bundled_ffmpeg_path_under_pack_bin():
-    from coomfy_export.ffmpeg_install import bundled_ffmpeg_path
-
     path = bundled_ffmpeg_path()
     assert path.parent.name == "bin"
     assert path.name in {"ffmpeg", "ffmpeg.exe"}
+
+
+def test_btbn_archive_url_on_supported_platforms():
+    import platform
+
+    url = _btbn_archive_url()
+    if platform.system() == "Windows" and platform.machine().lower() in {"amd64", "x86_64"}:
+        assert url is not None
+        assert url.endswith("ffmpeg-master-latest-win64-gpl.zip")
+    elif platform.system() == "Linux" and platform.machine().lower() in {"amd64", "x86_64"}:
+        assert url is not None
+        assert url.endswith("ffmpeg-master-latest-linux64-gpl.tar.xz")
 
 
 def test_looks_like_ffmpeg_case_insensitive():

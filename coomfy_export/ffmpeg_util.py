@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .ffmpeg_install import bundled_ffmpeg, ensure_bundled_ffmpeg
+from .ffmpeg_install import bundled_ffmpeg, ensure_bundled_ffmpeg, ffmpeg_supports_encoder
 
 
 def _looks_like_ffmpeg(path: str) -> bool:
