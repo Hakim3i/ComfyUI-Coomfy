@@ -5,10 +5,13 @@ from __future__ import annotations
 import platform
 import shutil
 import stat
+import subprocess
+import sys
 from pathlib import Path
 
 PACK_ROOT = Path(__file__).resolve().parents[1]
 BIN_DIR = PACK_ROOT / "bin"
+_IMAGEIO_FFMPEG_SPEC = "imageio-ffmpeg>=0.5.1"
 
 
 def bundled_ffmpeg_path() -> Path:
@@ -36,22 +39,28 @@ def _copy_ffmpeg(src: Path, dest: Path) -> str:
   return str(dest)
 
 
+def _import_imageio_ffmpeg():
+  try:
+    import imageio_ffmpeg
+
+    return imageio_ffmpeg
+  except ImportError:
+    subprocess.check_call(
+      [sys.executable, "-m", "pip", "install", _IMAGEIO_FFMPEG_SPEC],
+    )
+    import imageio_ffmpeg
+
+    return imageio_ffmpeg
+
+
 def ensure_bundled_ffmpeg(*, force: bool = False) -> str:
   """Install ffmpeg under ``ComfyUI-Coomfy/bin`` (idempotent)."""
   dest = bundled_ffmpeg_path()
   if not force and dest.is_file():
     return str(dest)
 
-  try:
-    import imageio_ffmpeg
-
-    src = Path(imageio_ffmpeg.get_ffmpeg_exe())
-  except Exception as exc:
-    raise FileNotFoundError(
-      "Could not bundle ffmpeg: install imageio-ffmpeg first "
-      "(pip install imageio-ffmpeg), or place ffmpeg on PATH."
-    ) from exc
-
+  imageio_ffmpeg = _import_imageio_ffmpeg()
+  src = Path(imageio_ffmpeg.get_ffmpeg_exe())
   if not src.is_file():
     raise FileNotFoundError(f"imageio-ffmpeg returned missing binary: {src}")
 

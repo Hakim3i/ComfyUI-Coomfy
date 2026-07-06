@@ -135,9 +135,6 @@ for req in "${NODES_DIR}"/*/requirements.txt; do
   "${PYTHON_BIN}" -m pip install -r "${req}"
 done
 
-echo "==> bundling ffmpeg into ${PACK_DIR}/bin (Coomfy Export Video)"
-"${PYTHON_BIN}" "${PACK_DIR}/coomfy_export/ffmpeg_install.py"
-
 cat <<EOF
 
 Done. Restart ComfyUI, then in Coomfy Settings set:

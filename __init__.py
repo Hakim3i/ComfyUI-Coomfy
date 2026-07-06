@@ -25,4 +25,19 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **_UTILS_NODE_DISPLAY_NAME_MAPPINGS,
 }
 
+_LOG = "[ComfyUI-Coomfy]"
+
+
+def _setup_bundled_ffmpeg() -> None:
+    try:
+        from .coomfy_export.ffmpeg_install import ensure_bundled_ffmpeg
+
+        path = ensure_bundled_ffmpeg()
+        print(f"{_LOG} ffmpeg ready: {path}")
+    except Exception as exc:
+        print(f"{_LOG} ffmpeg setup failed: {exc}")
+
+
+_setup_bundled_ffmpeg()
+
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

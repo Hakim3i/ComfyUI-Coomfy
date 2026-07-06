@@ -9,15 +9,14 @@ from pathlib import Path
 from .ffmpeg_install import bundled_ffmpeg, ensure_bundled_ffmpeg
 
 
+def _looks_like_ffmpeg(path: str) -> bool:
+  return Path(path).stem.lower() == "ffmpeg"
+
+
 def find_ffmpeg() -> str:
   bundled = bundled_ffmpeg()
   if bundled:
     return bundled
-
-  for name in ("ffmpeg", "ffmpeg.exe"):
-    path = shutil.which(name)
-    if path:
-      return path
 
   try:
     return ensure_bundled_ffmpeg()
@@ -31,9 +30,14 @@ def find_ffmpeg() -> str:
   except Exception:
     pass
 
+  for name in ("ffmpeg", "ffmpeg.exe"):
+    path = shutil.which(name)
+    if path:
+      return path
+
   raise FileNotFoundError(
-    "ffmpeg not found. Run install_comfyui_custom_nodes.sh from ComfyUI-Coomfy, "
-    "or install ffmpeg / imageio-ffmpeg for video export."
+    "ffmpeg not found. Restart ComfyUI so ComfyUI-Coomfy can bundle ffmpeg "
+    "into bin/, or install imageio-ffmpeg."
   )
 
 
@@ -41,12 +45,9 @@ def run_ffmpeg(args: list[str], *, cwd: str | None = None) -> None:
   if not args:
     raise ValueError("run_ffmpeg requires at least one argument")
   ffmpeg = find_ffmpeg()
-  if Path(args[0]).name not in {"ffmpeg", "ffmpeg.exe"}:
-    cmd = [ffmpeg, *args]
-  else:
-    cmd = [ffmpeg, *args[1:]]
+  rest = args[1:] if _looks_like_ffmpeg(args[0]) else args
   proc = subprocess.run(
-    cmd,
+    [ffmpeg, *rest],
     cwd=cwd,
     capture_output=True,
     text=True,
