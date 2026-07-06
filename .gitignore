@@ -9,6 +9,9 @@ __pycache__/
 *.py[cod]
 *.pyc
 
+# Bundled ffmpeg binary (installed by install_comfyui_custom_nodes.sh)
+bin/
+
 # Legacy: the dataset + viewer used to live here. They moved to the
 # standalone Coomfy repo (../Coomfy/). If a leftover dataset/ folder
 # is still present from before the split, ignore its contents so it

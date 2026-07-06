@@ -208,8 +208,10 @@ class CoomfyExportVideo:
         audio_bitrate_kbps: int,
         audio=None,
     ):
+        from .coomfy_export.ffmpeg_util import find_ffmpeg
         import folder_paths
 
+        find_ffmpeg()
         output_dir = folder_paths.get_temp_directory()
         entry = mux_video(
             images,
@@ -260,8 +262,10 @@ class CoomfyExportVideoPassthrough(CoomfyExportVideo):
         passthrough_latent,
         audio=None,
     ):
+        from .coomfy_export.ffmpeg_util import find_ffmpeg
         import folder_paths
 
+        find_ffmpeg()
         output_dir = folder_paths.get_temp_directory()
         entry = mux_video(
             images,

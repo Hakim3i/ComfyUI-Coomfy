@@ -60,6 +60,8 @@ The installer also pulls **ComfyUI-Crystools** (CPU/GPU monitor for Coomfy lab s
 
 Restart ComfyUI. Photo / Video Lab queueing requires these node types on the ComfyUI host.
 
+**Video export:** `install_comfyui_custom_nodes.sh` installs `imageio-ffmpeg` and copies ffmpeg into `bin/` inside this pack. `Coomfy Export Video` uses that binary automatically (no system ffmpeg required).
+
 ## Scope
 
 - **Multi-asset preflight** — `CoomfyAssetDownloader` fetches checkpoints, LoRAs, ControlNets, upscalers, detailer detectors + SAM, diffusion models, text encoders, and VAE before generation.
@@ -79,6 +81,8 @@ Restart ComfyUI. Photo / Video Lab queueing requires these node types on the Com
 | `nodes.py` | ComfyUI node registrations |
 | `coomfy_memory.py` | `CoomfyFreeVram` node |
 | `coomfy_export/` | Strip metadata + compress image/audio/video helpers |
+| `coomfy_export/ffmpeg_install.py` | Copy ffmpeg into `bin/` during install |
+| `requirements.txt` | `imageio-ffmpeg` for bundled ffmpeg |
 | `install_comfyui_custom_nodes.sh` | Clone/update all ComfyUI packs Photo + Video Lab need |
 | `__init__.py` | Pack entry (merges node registries) |
 | `tests/` | Pytest for download URL + export helpers |
