@@ -193,7 +193,11 @@ class CoomfyExportVideo:
             },
         }
 
-    RETURN_TYPES = ()
+    # Non-empty RETURN_TYPES so ComfyUI always persists this node in history
+    # (empty RETURN_TYPES can drop UI-only outputs; Video Lab then downloads the
+    # pass-1 preview as the "final" file).
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filename",)
     FUNCTION = "export"
     OUTPUT_NODE = True
     CATEGORY = "Coomfy/Export"
@@ -223,18 +227,16 @@ class CoomfyExportVideo:
             crf=crf,
             audio_bitrate_kbps=audio_bitrate_kbps,
         )
+        gif = {
+            "filename": entry["filename"],
+            "subfolder": entry["subfolder"],
+            "type": entry["type"],
+            "format": entry["format"],
+            "frame_rate": entry["frame_rate"],
+        }
         return {
-            "ui": {
-                "gifs": [
-                    {
-                        "filename": entry["filename"],
-                        "subfolder": entry["subfolder"],
-                        "type": entry["type"],
-                        "format": entry["format"],
-                        "frame_rate": entry["frame_rate"],
-                    }
-                ]
-            }
+            "ui": {"gifs": [gif]},
+            "result": (entry["filename"],),
         }
 
 
