@@ -56,9 +56,13 @@ COMFYUI_PYTHON=../../python_embeded/python.exe bash install_comfyui_custom_nodes
 
 Or activate the ComfyUI venv first; the script then uses that environment's `python3`.
 
-The installer also pulls **ComfyUI-Crystools** (CPU/GPU monitor for Coomfy lab status badges) and patches **ComfyUI-LTXVideo** for `kornia>=0.8` (`pad` import).
+The installer also patches **ComfyUI-LTXVideo** for `kornia>=0.8` (`pad` import).
 
 Restart ComfyUI. Photo / Video Lab queueing requires these node types on the ComfyUI host.
+
+**Built-in system monitor:** this pack broadcasts `coomfy.monitor` (CPU/RAM/GPU/VRAM) over the ComfyUI websocket every second — no Crystools needed. Coomfy reads it for the lab status badges; any ComfyUI browser tab receives it too.
+
+**Built-in LTX-2 sampling preview:** `CoomfyLTX2SamplingPreview` streams animated latent previews during LTX-2 sampling (Video Lab live preview). Ported from [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) `LTX2SamplingPreviewOverride` — Copyright kijai and contributors, **GPL-3.0** — with Coomfy fixes (background-thread preview work, no first-burst flood, bounded concurrency, cheaper JPEG). See `coomfy_preview.py` header for the full attribution.
 
 **Video export:** on first load ComfyUI-Coomfy downloads a full **BtbN ffmpeg** build (NVENC on Windows/Linux NVIDIA hosts) into `bin/`. Falls back to imageio-ffmpeg (CPU only) if the download fails. Startup log shows `h264_nvenc` or `libx264`.
 
@@ -80,9 +84,11 @@ Restart ComfyUI. Photo / Video Lab queueing requires these node types on the Com
 | `coomfy_assets/paths.py` | Resolve ComfyUI model folders (loras, checkpoints, upscale_models, ultralytics, sams, …) |
 | `nodes.py` | ComfyUI node registrations |
 | `coomfy_memory.py` | `CoomfyFreeVram` node |
+| `coomfy_monitor.py` | `coomfy.monitor` websocket broadcast (CPU/RAM/GPU/VRAM, 1 Hz) |
+| `coomfy_preview.py` | `CoomfyLTX2SamplingPreview` node (GPL-3.0, ported from KJNodes) |
 | `coomfy_export/` | Strip metadata + compress image/audio/video helpers |
 | `coomfy_export/ffmpeg_install.py` | Bundle ffmpeg into `bin/` when ComfyUI loads this pack |
-| `requirements.txt` | `imageio-ffmpeg` for bundled ffmpeg |
+| `requirements.txt` | `imageio-ffmpeg` (bundled ffmpeg), `psutil` + `pynvml` (monitor) |
 | `install_comfyui_custom_nodes.sh` | Clone/update all ComfyUI packs Photo + Video Lab need |
 | `__init__.py` | Pack entry (merges node registries) |
 | `tests/` | Pytest for download URL + export helpers |

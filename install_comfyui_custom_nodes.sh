@@ -120,8 +120,6 @@ clone_or_update "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impac
 clone_or_update "ComfyUI-Impact-Subpack" "https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git"
 clone_or_update "ComfyUI-Anima-LLLite" "https://github.com/kohya-ss/ComfyUI-Anima-LLLite.git"
 clone_or_update "ComfyUI-MultiLoRALoader" "https://github.com/phazei/ComfyUI-MultiLoRALoader.git"
-# Folder must be ComfyUI-Crystools (not comfyui-crystools) for web extension paths.
-clone_or_update "ComfyUI-Crystools" "https://github.com/crystian/ComfyUI-Crystools.git"
 clone_or_update "ComfyUI-PromptRelay" "https://github.com/kijai/ComfyUI-PromptRelay.git"
 clone_or_update "ComfyUI-VFI" "https://github.com/GACLove/ComfyUI-VFI.git"
 clone_or_update "Nvidia_RTX_Nodes_ComfyUI" "https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git"
