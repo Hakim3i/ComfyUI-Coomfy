@@ -201,7 +201,11 @@ class _OuterSampleCallbackWrapper:
     def __call__(self, executor, noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed, latent_shapes):
         guider = executor.class_obj
         diffusion_model = guider.model_patcher.model.diffusion_model
-        is_23 = not diffusion_model.caption_projection_first_linear
+        # Wan models have no LTX caption projection or LTX latent layout —
+        # run the sampler untouched instead of crashing (VHS previews cover Wan).
+        if "wan" in diffusion_model.__class__.__name__.lower():
+            return executor(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed, latent_shapes=latent_shapes)
+        is_23 = not getattr(diffusion_model, "caption_projection_first_linear", None)
 
         original_callback = callback
         if self.vae is not None and self.taeltx:

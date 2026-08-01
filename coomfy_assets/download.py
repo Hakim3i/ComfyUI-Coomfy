@@ -31,6 +31,7 @@ from .paths import (
     text_encoders_dir,
     ultralytics_dir,
     upscale_models_dir,
+    vae_approx_dir,
     vae_dir,
 )
 
@@ -317,6 +318,15 @@ def _is_ltx_latent_spatial_upscaler(filename: str) -> bool:
     return name.startswith("ltx-") and "spatial-upscaler" in name
 
 
+def _vae_target_path(entry: dict[str, Any]) -> Path:
+    """VAE rows route to ``models/vae_approx`` when the manifest folder says so."""
+    filename = str(entry.get("filename") or "").strip()
+    folder = str(entry.get("folder") or "").strip().lower()
+    if folder == "vae_approx":
+        return vae_approx_dir() / filename
+    return vae_dir() / filename
+
+
 def _upscaler_target_path(entry: dict[str, Any]) -> Path:
     filename = str(entry.get("filename") or "").strip()
     folder = str(entry.get("folder") or "").strip().lower()
@@ -383,7 +393,7 @@ def count_pending_assets(
     for entry in _parse_json_array(vae_json, log=_VAE_LOG):
         filename = str(entry.get("filename") or "").strip()
         if filename and _needs_download(
-            _model_target_path(vae_dir(), filename), asset_kind="vae"
+            _vae_target_path(entry), asset_kind="vae"
         ):
             pending += 1
     return pending
@@ -846,7 +856,7 @@ def ensure_vae_from_json(
     for entry in _parse_json_array(vae_json, log=_VAE_LOG):
         path = _ensure_named_file(
             entry,
-            base_dir=vae_dir(),
+            base_dir=_vae_target_path(entry).parent,
             log=_VAE_LOG,
             asset_kind="vae",
             civitai_token=civitai_token,

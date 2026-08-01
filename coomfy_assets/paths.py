@@ -68,3 +68,8 @@ def text_encoders_dir() -> Path:
 def vae_dir() -> Path:
     """Resolve ComfyUI ``models/vae``."""
     return _resolve_dir("vae", "vae")
+
+
+def vae_approx_dir() -> Path:
+    """Resolve ComfyUI ``models/vae_approx`` (TAESD preview autoencoders)."""
+    return _resolve_dir("vae_approx", "vae_approx")
