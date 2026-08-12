@@ -649,9 +649,66 @@ class CoomfyAssetDownloadOutput:
         return {"ui": {"text": [payload]}}
 
 
+class CoomfyPeerModelCopy:
+    """Copy missing model files from peer SMB shares into local models/."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "files_json": (
+                    "STRING",
+                    {
+                        "default": "[]",
+                        "multiline": True,
+                        "tooltip": 'JSON list of {bucket, filename} to copy if missing locally.',
+                    },
+                ),
+                "peers_json": (
+                    "STRING",
+                    {
+                        "default": "[]",
+                        "multiline": True,
+                        "tooltip": 'JSON list of {unc, user, password} peer model shares.',
+                    },
+                ),
+            },
+            "hidden": {
+                "prompt": "PROMPT",
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("status_json",)
+    FUNCTION = "run"
+    OUTPUT_NODE = True
+    CATEGORY = "coomfy"
+
+    def run(self, files_json, peers_json, prompt=None, unique_id=None):
+        from .coomfy_assets.peer_copy import copy_peer_models
+
+        prompt_id = None
+        if isinstance(prompt, dict):
+            prompt_id = str(prompt.get("prompt_id") or "") or None
+        result = copy_peer_models(
+            files_json=files_json or "[]",
+            peers_json=peers_json or "[]",
+            prompt_id=prompt_id,
+        )
+        payload = json.dumps(result)
+        print(
+            f"{_LOG} peer copy: copied={len(result.get('copied') or [])} "
+            f"skipped={len(result.get('skipped') or [])} "
+            f"missing={len(result.get('missing') or [])}"
+        )
+        return (payload,)
+
+
 NODE_CLASS_MAPPINGS = {
     "CoomfyAssetDownloader": CoomfyAssetDownloader,
     "CoomfyAssetDownloadOutput": CoomfyAssetDownloadOutput,
+    "CoomfyPeerModelCopy": CoomfyPeerModelCopy,
     "CoomfyInspectLTXLoras": CoomfyInspectLTXLoras,
     "CoomfyEnsureLoras": CoomfyEnsureLoras,
     "CoomfyEnsureSDXLLoras": CoomfyEnsureLoras,
@@ -666,6 +723,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CoomfyAssetDownloader": "Coomfy Asset Downloader",
     "CoomfyAssetDownloadOutput": "Coomfy Asset Download Output",
+    "CoomfyPeerModelCopy": "Coomfy Peer Model Copy",
     "CoomfyInspectLTXLoras": "Coomfy Inspect LTX LoRAs",
     "CoomfyEnsureLoras": "Coomfy Ensure LoRAs",
     "CoomfyEnsureSDXLLoras": "Coomfy Ensure LoRAs",
